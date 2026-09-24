@@ -1,0 +1,104 @@
+{
+  "total_sec": 167.76,
+  "scenes": [
+    {
+      "scene": "S01",
+      "file": "音声/S01_冒頭.wav",
+      "start": 0.0,
+      "voice_start": 1.2,
+      "voice_sec": 9.1,
+      "end": 11.1,
+      "scene_sec": 11.1
+    },
+    {
+      "scene": "S02",
+      "file": "音声/S02_タイトル.wav",
+      "start": 11.1,
+      "voice_start": 11.7,
+      "voice_sec": 10.03,
+      "end": 22.73,
+      "scene_sec": 11.63
+    },
+    {
+      "scene": "S03",
+      "file": "音声/S03_PLATEAU実測高さ.wav",
+      "start": 22.73,
+      "voice_start": 23.33,
+      "voice_sec": 14.35,
+      "end": 38.48,
+      "scene_sec": 15.75
+    },
+    {
+      "scene": "S04",
+      "file": "音声/S04_物理計算.wav",
+      "start": 38.48,
+      "voice_start": 39.08,
+      "voice_sec": 14.72,
+      "end": 54.6,
+      "scene_sec": 16.12
+    },
+    {
+      "scene": "S05",
+      "file": "音声/S05_防潮壁.wav",
+      "start": 54.6,
+      "voice_start": 55.2,
+      "voice_sec": 13.19,
+      "end": 69.39,
+      "scene_sec": 14.79
+    },
+    {
+      "scene": "S06",
+      "file": "音声/S06_目線視点.wav",
+      "start": 69.39,
+      "voice_start": 69.99,
+      "voice_sec": 14.07,
+      "end": 84.86,
+      "scene_sec": 15.47
+    },
+    {
+      "scene": "S07",
+      "file": "音声/S07_ゼロメートル地帯.wav",
+      "start": 84.86,
+      "voice_start": 85.46,
+      "voice_sec": 10.82,
+      "end": 97.29,
+      "scene_sec": 12.42
+    },
+    {
+      "scene": "S08",
+      "file": "音声/S08_名古屋駅広域.wav",
+      "start": 97.29,
+      "voice_start": 97.89,
+      "voice_sec": 13.98,
+      "end": 112.66,
+      "scene_sec": 15.38
+    },
+    {
+      "scene": "S09",
+      "file": "音声/S09_公式比較.wav",
+      "start": 112.66,
+      "voice_start": 113.26,
+      "voice_sec": 16.3,
+      "end": 130.36,
+      "scene_sec": 17.7
+    },
+    {
+      "scene": "S10",
+      "file": "音声/S10_木造流失と垂直避難.wav",
+      "start": 130.36,
+      "voice_start": 130.96,
+      "voice_sec": 19.29,
+      "end": 151.05,
+      "scene_sec": 20.69
+    },
+    {
+      "scene": "S11",
+      "file": "音声/S11_締め.wav",
+      "start": 151.05,
+      "voice_start": 151.85,
+      "voice_sec": 12.91,
+      "end": 167.76,
+      "scene_sec": 16.71
+    }
+  ]
+}

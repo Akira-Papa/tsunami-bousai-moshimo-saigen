@@ -11,6 +11,7 @@ import { makeFrame } from './data/geo.js';
 import { createSolver } from './sim/swe.js';
 import { createWorld } from './render/world.js';
 import { createPin, createSeaMarker } from './render/markers.js';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -40,6 +41,7 @@ async function onPick(lat, lon) {
   $('sel-zero').hidden = true;
   $('go').disabled = true;
   $('Hsrc').textContent = '';
+  requestAnimationFrame(() => $('sel').scrollIntoView({ block: 'start', behavior: 'smooth' }));
   const [info, plan] = await Promise.all([
     tsunamiHeightAt(lat, lon).catch(() => null),
     planDomain(lat, lon).catch((e) => ({ ok: false, reason: 'error', error: e })),
@@ -120,6 +122,29 @@ $('tide').addEventListener('input', (e) => { $('tideOut').textContent = `T.P.+${
 $('crest').addEventListener('input', (e) => { $('crestOut').textContent = `T.P.+${Number(e.target.value).toFixed(1)}m`; });
 $('levee').addEventListener('change', syncLevee);
 
+// ── PLATEAU AWARD additions: controls injected here so index.html stays untouched ──
+// 木造家屋の流失（選択画面）
+{
+  const row = document.createElement('div');
+  row.className = 'sel-row';
+  row.innerHTML = '<label class="chk"><input type="checkbox" id="washaway" checked /> 浸水深2m以上で木造家屋が流される（首藤1993）</label>' +
+    '<p class="src">対象は PLATEAU の構造種別が木造の建物です。構造種別がないデータ（名古屋市など）では、建物区分「普通建物」（PLATEAU、なければ国土地理院）を<b>木造などの普通建物（構造は推定）</b>として扱います。普通建物には2階建てのRC造なども含まれます。周りの浸水深が2mに達した家は壁でなくなり、水が通り抜けます。漂流物は計算しません。</p>';
+  $('crestSrc').closest('.sel-row').after(row);
+}
+// 高い建物（避難候補）の表示切替・HUD欄・結果欄
+{
+  const lab = document.createElement('label');
+  lab.innerHTML = '<input type="checkbox" id="tg-tall" checked /> 高い建物（避難候補）';
+  $('result-btn').before(lab);
+  const hud = document.createElement('div');
+  hud.id = 'h-tall';
+  hud.className = 'htall';
+  $('h-note').before(hud);
+  const ex = document.createElement('div');
+  ex.id = 'r-extra';
+  document.querySelector('#result .cols').after(ex);
+}
+
 function setH(v) { $('H').value = v; $('Hout').textContent = Number(v).toFixed(1); }
 $('H').addEventListener('input', (e) => { $('Hout').textContent = Number(e.target.value).toFixed(1); });
 
@@ -148,6 +173,7 @@ let app = null; // current town
 $('go').addEventListener('click', () => start({
   lat: sel.lat, lon: sel.lon, plan: sel.plan, info: sel.info, H: Number($('H').value), N: Number($('quality').value),
   tide: Number($('tide').value), levee: { enabled: $('levee').checked, crest: Number($('crest').value) }, breach: $('breach').checked,
+  washaway: $('washaway').checked,
 }));
 $('load-cancel').addEventListener('click', () => { loadAbort = true; gen++; show('pick'); picker.resize(); });
 $('back').addEventListener('click', () => { stopApp(); show('pick'); picker.resize(); });
@@ -173,6 +199,7 @@ async function start(o) {
     if (o.demo) {
       stage('grid', '合成の港町を作っています…', 0.5);
       region = syntheticRegion(o.N >= 768 ? 640 : 512, 1200);
+      region.synthetic = true;
       o.pointLocal = { x: -60, z: 60 };
       o.H = o.H || 8;
     } else {
@@ -230,7 +257,7 @@ async function createApp(region, o) {
   if (outerSolver) outerSolver.wave.hold = 3600; // inland points: the flood keeps spreading while the sea stays high (≈ 90 min run)
   const innerOffset = o.plan?.outer?.innerOffset ?? { x: 0, z: 0 };
   const solver = createSolver(renderer, region, {
-    H, tide: o.tide ?? 0, breach: o.breach ?? true,
+    H, tide: o.tide ?? 0, breach: o.breach ?? true, washaway: o.washaway ?? true,
     ...(outerSolver ? { nest: { solver: outerSolver, offset: innerOffset }, calibrate: false } : {}),
   });
   if (outerSolver) solver.wave.hold = outerSolver.wave.hold;
@@ -294,7 +321,8 @@ async function createApp(region, o) {
   // HUD static bits
   $('t-name').textContent = o.demo ? '合成の港町（デモ）' : (o.info?.name ? `${o.info.name}${o.info.place ? ' ' + o.info.place : ''}` : '選んだ地点');
   $('t-h').textContent = `海の高さ${H.toFixed(1)}m（仮定）${(o.tide ?? 0) > 0 ? `・満潮+${o.tide.toFixed(1)}` : ''}${region.leveeCells ? `・防潮壁${o.levee.crest.toFixed(1)}m` : ''}`;
-  $('t-h').title = `海の高さ ${H.toFixed(1)}m（T.P.・仮定）／はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m${region.leveeCells ? `／防潮壁 天端 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない'}` : '／防潮壁なし'}`;
+  $('t-h').title = `海の高さ ${H.toFixed(1)}m（T.P.・仮定）／はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m${region.leveeCells ? `／防潮壁 天端 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない'}` : '／防潮壁なし'}` +
+    (solver.washDepth > 0 ? `／木造家屋 ${solver.woodHouses}棟は浸水深${solver.washDepth}mで流失` : '／木造家屋の流失なし');
   solver.setPin(pi, pj);
   $('h-gnd').textContent = `${pinGround >= 0 ? '' : '−'}${Math.abs(pinGround).toFixed(1)}m${pinGround < 0 ? '（海面より低い）' : ''}`;
   $('h-gnd').title = moved > 3 ? `建物を避けて約${Math.round(moved)}m先の地面に柱を立てました（5mメッシュの標高）` : '5mメッシュの標高';
@@ -303,6 +331,96 @@ async function createApp(region, o) {
   $('h-off').textContent = !official?.covered && !official?.cells?.length
     ? '未確認（収録外）'
     : offCell ? `${offCell.depth.toFixed(1)}m` : '浸水セルなし';
+
+  // ── credits: name the PLATEAU dataset actually used (A1 extract / community PMTiles), and the evac source ──
+  {
+    const bs = region.stats?.buildings ?? {};
+    const PL = '<a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">';
+    const parts = [];
+    if (bs.plateauLocal && region.plateau) {
+      const name = /「([^」]+)」/.exec(region.plateau.source ?? '')?.[1] ?? '3D都市モデル（Project PLATEAU）';
+      parts.push(`「${PL}${esc(name)}</a>」（国土交通省）を加工して作成`);
+      if (region.buildings.some((b) => b.attrs?.evac)) parts.push('国土地理院「指定緊急避難場所データ」を加工して作成');
+    }
+    if (bs.plateau) parts.push(`${PL}3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成（有志変換のPMTiles経由）`);
+    CREDIT0.a ??= $('credit-plateau').innerHTML; CREDIT0.b ??= $('r-credit-plateau').innerHTML;
+    // no PLATEAU at all (mirror down / outside coverage): say so instead of crediting PLATEAU for GSI guesses (QA #4)
+    const nB = region.buildings?.length ?? 0;
+    const noPl = !bs.plateauLocal && !bs.plateau && !region.synthetic;
+    const gsiB = '建物は国土地理院ベクトルタイル（高さは種別からの推定）';
+    $('credit-plateau').innerHTML = parts.length ? parts.join('／') : noPl ? gsiB : CREDIT0.a;
+    $('r-credit-plateau').innerHTML = parts.length ? parts.join('。') + '。' : noPl ? gsiB + '。' : CREDIT0.b;
+    const srcNote = region.synthetic ? ''
+      : nB === 0 ? '建物データを取得できませんでした。建物なしで計算しています（地点を選び直すと再取得します）。'
+        : noPl ? 'PLATEAUの建物を取得できなかったため、国土地理院の建物（高さは推定）で計算しています。' : '';
+    if (srcNote) $('h-note').textContent = [$('h-note').textContent, srcNote].filter(Boolean).join(' ');
+  }
+
+  // ── 垂直避難の見える化: tall RC/SRC/steel buildings around the point (PLATEAU attributes only) ──
+  // Heights are only trusted when measured (PLATEAU h) or given as storeys; the GSI classes carry no
+  // measured height, so without the PLATEAU extract nothing is judged (no guessed evacuation targets).
+  const EVAC_R = 300;
+  const RC_ST = new Set(['rc', 'src', 'steel']);
+  const ST_JA = { wood: '木造', rc: 'RC造', src: 'SRC造', steel: '鉄骨造', other: 'その他', sturdy: '堅ろう建物' };
+  // structure: PLATEAU 構造種別 when present; otherwise 建物区分 = 堅ろう建物（鉄筋コンクリート等・3階以上）stands in
+  const structOf = (a) => a?.st ?? (a?.sc === 'sturdy' ? 'sturdy' : null);
+  const EVAC_JA = '指定緊急避難場所（津波）';
+  const nearB = [];
+  region.buildings.forEach((b, id) => {
+    if (Math.hypot(b.cx - pinX, b.cz - pinZ) > EVAC_R + 200) return;
+    const d = distToRing(b.ring, pinX, pinZ);
+    if (d <= EVAC_R) nearB.push({ b, id, d });
+  });
+  const hasStruct = nearB.some((e) => e.b.attrs && (e.b.attrs.st || e.b.attrs.sc || e.b.attrs.evac));
+  const EVAC_SRC = '国土地理院「指定緊急避難場所データ」（津波）を PLATEAU の建物に位置で重ねたもの';
+  const tall = { level: H, levelNote: `海の高さ ${H.toFixed(1)}m（T.P.・再現前の目安）`, levelShort: `海の高さ${H.toFixed(1)}m`, evac: [], cand: [], labels: [] };
+  function judgeTall(level, levelNote, levelShort = levelNote) {
+    const evac = [], cand = [];
+    for (const e of nearB) {
+      const a = e.b.attrs;
+      if (!a) continue;
+      const hEff = a.h ?? (a.s ? a.s * 3 : null);
+      if (a.evac) { evac.push({ ...e, hEff }); continue; }
+      if (!(RC_ST.has(a.st) || structOf(a) === 'sturdy') || hEff == null) continue;
+      const need = Math.max(level - e.b.base, 0) + 2;
+      if (hEff >= need) cand.push({ ...e, hEff, need });
+    }
+    evac.sort((a, b) => a.d - b.d); cand.sort((a, b) => a.d - b.d);
+    Object.assign(tall, { level, levelNote, levelShort, evac, cand });
+    const states = new Map();
+    for (const e of cand) states.set(e.id, 1);
+    for (const e of evac) states.set(e.id, 2);
+    world.setHighlight(states);
+    // 3-D tags on the nearest three (evacuation buildings first)
+    for (const l of tall.labels) l.removeFromParent();
+    tall.labels = [...evac, ...cand].slice(0, 3).map((e, n) => {
+      const el = document.createElement('div');
+      el.className = `lbl ${e.b.attrs.evac ? 'evacb' : 'tallb'}`;
+      el.textContent = `${n + 1}. ${e.b.attrs.evac ? '避難場所（津波）' : '高い建物'} 約${mDist(e.d)}`;
+      const l = new CSS2DObject(el);
+      l.position.set(e.b.cx, e.b.top + 3, e.b.cz);
+      l.center.set(0.5, 1);
+      l.visible = $('tg-tall').checked;
+      scene.add(l);
+      return l;
+    });
+    renderTallHud();
+  }
+  const mDist = (d) => (d < 1000 ? `${Math.max(10, Math.round(d / 10) * 10)}m` : `${(d / 1000).toFixed(1)}km`);
+  const TALL_NOTE = '避難先として指定されているかは自治体の情報で確認してください。';
+  function renderTallHud() {
+    const el = $('h-tall');
+    if (!hasStruct) {
+      el.innerHTML = `<b>高い建物（避難候補）</b><span>${nearB.length ? '建物の構造データ（PLATEAU）がない範囲のため、判定していません。' : `地点から${EVAC_R}m以内に建物がありません。`}</span><small class="must">${TALL_NOTE}</small>`;
+      return;
+    }
+    const top = [...tall.evac, ...tall.cand].slice(0, 3);
+    el.innerHTML = `<b>高い建物（避難候補）<em>${EVAC_R}m以内</em></b>` +
+      (top.length ? `<ol>${top.map((e) => `<li class="${e.b.attrs.evac ? 'evacb' : 'tallb'}">${e.b.attrs.evac ? '避難場所（津波）' : '高い建物'} 約${mDist(e.d)}<small>${e.b.attrs.evac && typeof e.b.attrs.evac === 'string' ? esc(e.b.attrs.evac.length > 14 ? e.b.attrs.evac.slice(0, 13) + '…' : e.b.attrs.evac) : (ST_JA[structOf(e.b.attrs)] ?? '')}${e.hEff ? `・高さ${e.hEff.toFixed(0)}m` : ''}</small></li>`).join('')}</ol>`
+        : '<span>条件に合う建物は見つかりませんでした。</span>') +
+      `<small class="crit">橙＝堅ろうな建物で高さが水位＋2m以上（水位＝${tall.levelShort}）／緑＝${EVAC_JA}。</small><small class="must">予測・推奨ではありません。<b>${TALL_NOTE}</b></small>`;
+  }
+  judgeTall(tall.level, tall.levelNote);
 
   // warm up every pipeline so the first frame does not stall
   if (outerSolver) { await outerSolver.compileAll(); outerSolver.pack(); }
@@ -326,7 +444,7 @@ async function createApp(region, o) {
       // frame both the point and the coast (nested: the near edge of the detailed square toward the sea)
       const span = Math.min(Math.hypot(seaX - pinX, seaZ - pinZ), far ? 700 : Infinity);
       const sx = pinX + dir.x * span, sz = pinZ + dir.y * span;
-      const tgt = V(pinX + (sx - pinX) * 0.35, 5, pinZ + (sz - pinZ) * 0.35);
+      const tgt = V(pinX + (sx - pinX) * 0.12, 5, pinZ + (sz - pinZ) * 0.12); // near the point: the dock covers the lower screen
       const back = Math.max(380, span * 0.75);
       return { pos: V(tgt.x - dir.x * back, Math.max(260, back * 0.75) + Math.max(0, pinGround), tgt.z - dir.y * back), target: tgt };
     },
@@ -392,8 +510,10 @@ async function createApp(region, o) {
     $('legend').hidden = !(depth || $('tg-off').checked);
     world.uShowOfficial.value = $('tg-off').checked ? 1 : 0;
     world.spray.visible = $('tg-spray').checked && !calm();
+    world.uShowTall.value = $('tg-tall').checked ? 1 : 0;
+    for (const l of tall.labels) l.visible = $('tg-tall').checked;
   };
-  ['tg-depth', 'tg-off', 'tg-spray', 'tg-calm'].forEach((id) => on(id, 'change', applyToggles));
+  ['tg-depth', 'tg-off', 'tg-spray', 'tg-calm', 'tg-tall'].forEach((id) => on(id, 'change', applyToggles));
   applyToggles();
   on('result-btn', 'click', () => openResult());
   on('r-close', 'click', () => { $('result').hidden = true; labels.domElement.style.visibility = ''; });
@@ -456,6 +576,15 @@ async function createApp(region, o) {
         const t = setTimeout(() => { $('toast').hidden = true; $('toast-yes').hidden = false; }, 9000);
         cleanups.push(() => clearTimeout(t));
       }
+      // first wooden house washed away (首藤1993: 浸水深2mで木造家屋は全面破壊)
+      if (!st.washSaid && solver.coast.washed > 0 && $('toast').hidden) {
+        st.washSaid = true;
+        $('toast-t').textContent = `周りの浸水深が2mに達し、${region.buildings.some((b) => b.woodEst) ? '木造などの普通建物（構造は推定）' : '木造家屋'}が流され始めました（首藤1993の目安：2mで木造家屋は全面破壊）。`;
+        $('toast-yes').hidden = true;
+        $('toast').hidden = false;
+        const t = setTimeout(() => { $('toast').hidden = true; $('toast-yes').hidden = false; }, 9000);
+        cleanups.push(() => clearTimeout(t));
+      }
       // first water on land → offer the hazard-map colouring (日向 #5)
       if (!st.toasted && $('toast').hidden && Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity)) && !$('tg-depth').checked) {
         st.toasted = true;
@@ -495,6 +624,9 @@ async function createApp(region, o) {
         if (n >= (B * B) / 2) cell100 = Math.max(cell100, sum / n);
       }
     const done = solver.time > solver.wave.pre + solver.wave.rise + solver.wave.hold + solver.wave.fall;
+    const washed = await solver.readWashed();
+    if (washed) { world.markWashed(washed); st.washSeen = solver.coast.washed; }
+    renderExtra(m, washed, done);
     $('r-sub').textContent = `${$('t-name').textContent}　計算範囲 ${outerSolver ? `広域 ${(outerSolver.L / 1000).toFixed(1)}km四方（約${outerSolver.dx.toFixed(0)}m）＋地点周り ` : ''}${(L / 1000).toFixed(1)}km四方・格子 ${N}²（約${dx.toFixed(1)}m）・押し波開始から ${fmt(solver.time - solver.wave.pre)}${done ? '' : '（まだ途中の値です）'}`;
     $('r-sim').innerHTML = `
       <div><dt>ここの深さ（最大）</dt><dd>${reached ? pm[0].toFixed(2) + 'm' : `<small>今回の仮定では到達せず${Number.isFinite(st.closest) ? `（水の先端は最も近くて約${st.closest < 1000 ? Math.round(st.closest / 10) * 10 + 'm' : (st.closest / 1000).toFixed(1) + 'km'}まで）` : ''}</small>`}</dd></div>
@@ -502,7 +634,7 @@ async function createApp(region, o) {
       <div><dt>水が来たのは</dt><dd>${reached ? `押し波開始から約${Math.max(0, (pm[1] - solver.wave.pre) / 60).toFixed(0)}分後` : '—'}</dd></div>
       <div><dt>最大の流れの速さ</dt><dd>${reached ? pm[2].toFixed(1) + 'm/s' : '—'}</dd></div>
       <div><dt>計算範囲内で水に浸かった陸地</dt><dd>${km2.toFixed(2)}km²</dd></div>
-      <div><dt>条件</dt><dd><small>はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m／${region.leveeCells ? `防潮壁 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない'}（壊れたセル ${solver.coast.breached}）` : '防潮壁なし'}</small></dd></div>`;
+      <div><dt>条件</dt><dd><small>はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m／${region.leveeCells ? `防潮壁 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない'}（壊れたセル ${solver.coast.breached}）` : '防潮壁なし'}／${solver.washDepth > 0 ? `木造家屋は浸水深${solver.washDepth}mで流失` : '木造家屋の流失なし'}</small></dd></div>`;
     const offCells = official?.cells ?? [];
     const inDom = offCells.filter((c) => Math.abs(c.x) < L / 2 && Math.abs(c.z) < L / 2);
     const covered = official?.covered || offCells.length > 0;
@@ -516,15 +648,109 @@ async function createApp(region, o) {
     $('r-note').innerHTML = `時刻の物差しが違います：この再現は<b>押し波が計算範囲に入ってから</b>、公式は<b>地震が起きてから</b>の時間です。` +
       (arr != null ? `公式想定では、この付近に水が来るのは<b>地震から約${arr}分後</b>です。ただし堤防が壊れたり、川を水がさかのぼったりすると、もっと早く来ることがあります。揺れがおさまったら、すぐ高い所へ。` : '揺れがおさまったら、すぐ高い所へ。') + '<br>' +
       (pinGround < 0.3 ? '<b>海抜ゼロメートル地帯では、入った水は自然には引きません。</b>伊勢湾台風（1959年）では、水が数か月引かなかった地域があります。2階以上か、近くの津波避難ビルへ。<br>' : '') +
-      `この再現は、海岸に「海の高さ」の波を入れ、地形・建物${region.leveeCells ? '・防潮壁' : ''}で水の動きを計算した仮定の再現です。${region.leveeCells ? '防潮壁は地理院の「堤防等に接する海岸線」の位置に置いた近似です。' : '防潮壁・水門は含みません。'}沖の高潮防波堤・地盤沈下・漂流物・建物の破壊は含みません。条件が違うので、公式の値とは一致しません。` +
+      `この再現は、海岸に「海の高さ」の波を入れ、地形・建物${region.leveeCells ? '・防潮壁' : ''}で水の動きを計算した仮定の再現です。${region.leveeCells ? '防潮壁は地理院の「堤防等に接する海岸線」の位置に置いた近似です。' : '防潮壁・水門は含みません。'}${solver.washDepth > 0 ? '沖の高潮防波堤・地盤沈下・漂流物は含みません。木造家屋は周りの浸水深が2mに達したら流される（壁でなくなる）とし、ほかの建物の破壊は含みません。' : '沖の高潮防波堤・地盤沈下・漂流物・建物の破壊は含みません。'}条件が違うので、公式の値とは一致しません。` +
       (hi > 0.01 ? `<br><b>備えは高いほう（${hi.toFixed(1)}m）で考えてください。</b>` : '');
     $('r-read').textContent = `読み上げ用：選んだ地点では、${reached ? `最大で${pm[0].toFixed(1)}メートルの深さになりました` : '今回の仮定では水は到達しませんでした'}。周辺100メートル四方では最大${cell100.toFixed(1)}メートル。公式想定は${covered ? (offCell ? `${offCell.depth.toFixed(1)}メートル` : '浸水セルなし') : '未確認'}です。`;
     $('result').hidden = false;
   }
 
+  /** result extras: 垂直避難 / 建物ごとの公式比較 / 木造家屋の流失 */
+  function renderExtra(m, washed, done) {
+    // re-judge the tall buildings against this run's highest water level near the point
+    let lv = -Infinity;
+    const r2 = EVAC_R * EVAC_R;
+    const ci0 = Math.max(0, Math.floor((pinX - EVAC_R + L / 2) / dx)), ci1 = Math.min(N - 1, Math.floor((pinX + EVAC_R + L / 2) / dx));
+    const cj0 = Math.max(0, Math.floor((pinZ - EVAC_R + L / 2) / dx)), cj1 = Math.min(N - 1, Math.floor((pinZ + EVAC_R + L / 2) / dx));
+    for (let j = cj0; j <= cj1; j++) for (let i = ci0; i <= ci1; i++) {
+      const x = -L / 2 + (i + 0.5) * dx - pinX, z = -L / 2 + (j + 0.5) * dx - pinZ;
+      if (x * x + z * z > r2) continue;
+      const k = j * N + i;
+      if (region.water[k] || m[k * 4] < 0.05) continue;
+      lv = Math.max(lv, m[k * 4 + 3]);
+    }
+    if (Number.isFinite(lv)) judgeTall(lv, `この再現で地点から${EVAC_R}m以内の最大水位 T.P.+${lv.toFixed(1)}m`, `この再現の最大 T.P.+${lv.toFixed(1)}m`);
+    else judgeTall(H, `この再現では地点の周りに水が届かなかったため、海の高さ ${H.toFixed(1)}m（T.P.）を目安`, `海の高さ${H.toFixed(1)}m`);
+
+    // max depth of this run just outside a building's footprint (its own cells are walls)
+    const simAround = (id) => {
+      const b = region.buildings[id];
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const [x, z] of b.ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+      let best = 0;
+      for (let j = Math.max(0, Math.floor((z0 + L / 2) / dx) - 2); j <= Math.min(N - 1, Math.floor((z1 + L / 2) / dx) + 2); j++)
+        for (let i = Math.max(0, Math.floor((x0 + L / 2) / dx) - 2); i <= Math.min(N - 1, Math.floor((x1 + L / 2) / dx) + 2); i++) {
+          const k = j * N + i;
+          if (region.bldId[k] === id || region.water[k]) continue;
+          best = Math.max(best, m[k * 4]);
+        }
+      return best;
+    };
+    let html = '';
+
+    // 垂直避難
+    const list = [...tall.evac, ...tall.cand].slice(0, 5);
+    html += `<section class="rx"><h3>地点の周りの高い建物（避難候補・${EVAC_R}m以内）</h3>`;
+    if (!hasStruct) html += `<p class="src">${nearB.length ? 'この範囲には建物の構造データ（PLATEAU）がないため、判定していません。' : `地点から${EVAC_R}m以内に建物がありません。`}</p>`;
+    else if (!list.length) html += '<p class="src">条件に合う建物は見つかりませんでした。</p>';
+    else html += `<table class="rtab"><thead><tr><th>#</th><th>種類</th><th>距離</th><th>構造</th><th>高さ</th><th>用途</th></tr></thead><tbody>${list.map((e, n) =>
+      `<tr><td>${n + 1}</td><td class="${e.b.attrs.evac ? 'evacb' : 'tallb'}">${e.b.attrs.evac ? `${EVAC_JA}${typeof e.b.attrs.evac === 'string' ? `<br><small>${esc(e.b.attrs.evac)}</small>` : ''}` : '高い建物'}</td><td>約${mDist(e.d)}</td><td>${ST_JA[structOf(e.b.attrs)] ?? '—'}</td><td>${e.hEff ? e.hEff.toFixed(1) + 'm' : '—'}</td><td>${esc(e.b.attrs.u) || '—'}</td></tr>`).join('')}</tbody></table>`;
+    html += `<p class="src">判定：RC・SRC・鉄骨造（構造種別がないデータでは、PLATEAU の建物区分「堅ろう建物」＝鉄筋コンクリート等・3階以上で代用）で、高さ（PLATEAU の計測高さ、なければ階数×3m）が「水位＋2m」以上。水位＝${tall.levelNote}。緑は${EVAC_JA}の建物です（出典：${EVAC_SRC}。津波避難ビルの公式一覧との照合ではありません）。構造は PLATEAU の建物区分からの推定を含みます。距離は地点から建物の外周までの直線距離で、道のりではありません。</p>`;
+    html += `<p class="note"><b>予測・推奨ではありません。${TALL_NOTE}</b>入れる建物か、屋上や上の階へ上がれるかも、事前に確かめておいてください。</p></section>`;
+
+    // 建物ごとの比較: PLATEAU の建物別津波浸水想定 (td) があればそれ、なければ建物の中心で引いた内閣府の100m集約値。
+    // 後者は「建物の位置での公式想定（100m集約）」であって建物ごとの公式値ではない — 見出しと列名で区別する
+    const anyTd = region.buildings.some((b) => b.attrs?.td != null);
+    const offOk = official?.covered || (official?.cells?.length ?? 0) > 0;
+    const cand = [];
+    region.buildings.forEach((b, id) => {
+      if (b.kind === 'shed' || (anyTd && b.attrs?.td == null)) return;
+      if (Math.hypot(b.cx - pinX, b.cz - pinZ) > 250) return;
+      const d = distToRing(b.ring, pinX, pinZ);
+      if (d <= 150) cand.push({ b, id, d });
+    });
+    cand.sort((a, b) => a.d - b.d);
+    const rows = cand.slice(0, 8).map((e) => {
+      const oc = anyTd ? null : officialAt(official, e.b.cx, e.b.cz);
+      return { ...e, sim: simAround(e.id), off: anyTd ? e.b.attrs.td : oc ? oc.depth : offOk ? 0 : null, washedNow: !!washed?.[e.id] };
+    });
+    const offHead = anyTd ? '建物ごとの公式想定（PLATEAU）' : '建物の位置での公式想定（100m集約）';
+    html += `<section class="rx"><h3>地点の近くの建物：${anyTd ? '建物ごとの公式想定' : '建物の位置での公式想定（100m集約）'} と この再現</h3>`;
+    if (!rows.length) html += '<p class="src">地点から150m以内に比べられる建物がありません。</p>';
+    else if (!anyTd && !offOk) html += '<p class="src">この範囲は内閣府の浸水データの収録範囲外（未確認）のため、比べられません。「浸水しない」という意味ではありません。</p>';
+    else {
+      const both = rows.filter((r) => r.off != null);
+      const mean = both.reduce((a, r) => a + (r.sim - r.off), 0) / Math.max(1, both.length);
+      const f2 = (v) => (v > 0.01 ? v.toFixed(2) + 'm' : '<small>浸水なし</small>');
+      html += `<table class="rtab"><thead><tr><th>距離</th><th>用途</th><th>構造</th><th>${offHead}</th><th>この再現（建物のすぐ外）</th><th>差</th></tr></thead><tbody>${rows.map((r) =>
+        `<tr><td>約${mDist(r.d)}</td><td>${esc(r.b.attrs?.u) || '—'}</td><td>${r.b.attrs?.st ? ST_JA[r.b.attrs.st] : r.b.wood ? '普通建物<small>（木造など・推定）</small>' : ST_JA[structOf(r.b.attrs)] ?? '—'}${r.washedNow ? '<br><small>この再現で流失</small>' : ''}</td><td>${r.off == null ? '—' : f2(r.off)}</td><td>${f2(r.sim)}</td><td>${r.off == null ? '—' : (r.sim - r.off >= 0 ? '+' : '−') + Math.abs(r.sim - r.off).toFixed(2) + 'm'}</td></tr>`).join('')}</tbody></table>`;
+      html += anyTd
+        ? `<p class="src">公式想定＝PLATEAU の建物属性「津波浸水想定」の浸水深。この再現＝建物のすぐ外側の最大浸水深。`
+        : `<p class="src"><b>公式想定の列は、建物の中心を含む100m四方の最大浸水深（内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）ケース01 を100mに集約）で、その建物ごとの公式値ではありません。</b>この地域の PLATEAU データには建物ごとの津波浸水想定の属性がないため、代わりに使っています。この再現＝建物のすぐ外側の最大浸水深（約${dx.toFixed(1)}m格子）。`;
+      html += `地点から近い${both.length}棟の平均の差は ${(mean >= 0 ? '+' : '−') + Math.abs(mean).toFixed(2)}m。津波の条件（波の形・潮位・堤防の扱い）と物差しが違うので、一致はしません。${done ? '' : '再現はまだ途中です。'}</p>`;
+    }
+    if (region.plateau?.source) html += `<p class="src">出典：${esc(region.plateau.source)}</p>`;
+    html += '</section>';
+
+    // 木造家屋の流失
+    if (washed) {
+      let all = 0, near = 0, woodNear = 0;
+      region.buildings.forEach((b, id) => {
+        if (!b.wood) return;
+        const inR = Math.hypot(b.cx - pinX, b.cz - pinZ) <= EVAC_R;
+        if (inR) woodNear++;
+        if (washed[id]) { all++; if (inR) near++; }
+      });
+      const est = region.buildings.some((b) => b.woodEst);
+      html += `<section class="rx"><h3>木造家屋の流失（浸水深2m・首藤1993）</h3><p>計算範囲で流された${est ? '木造などの普通建物（構造は推定）' : '木造家屋'} <b>${all}棟</b>（対象 ${solver.woodHouses}棟のうち）。地点から${EVAC_R}m以内では <b>${near}棟</b>（対象 ${woodNear}棟のうち）。</p>` +
+        `<p class="src">${est ? '<b>構造は推定を含みます。</b>構造種別がない建物は、建物区分「普通建物」（PLATEAU、なければ国土地理院）を木造とみなしています。普通建物には2階建てのRC造なども含まれるので、実際より多く流れる側の仮定です。' : '木造かどうかは PLATEAU の構造種別で判断しています。'}流された家は壁でなくなるだけで、漂流物（がれき）がぶつかる力は計算していません。</p></section>`;
+    }
+    $('r-extra').innerHTML = html;
+  }
+
   // ── frame loop ──
   let probeTick = 0;
-  let fpsAcc = 0, fpsN = 0;
+  let fpsAcc = 0, fpsN = 0, fpsSec = 0, fpsGood = 0;
+  prScale = 1; // every place starts sharp; a slow previous place must not carry its low resolution over
   function frame(fixedDt) {
     const now = performance.now();
     const rdt = fixedDt ?? Math.min((now - st.lastT) / 1000, 1 / 20);
@@ -568,6 +794,12 @@ async function createApp(region, o) {
     world.renderCaustics();
     world.pipeline.render();
     labels.render(scene, camera);
+    // washed houses → forget them in the water shading and redraw the sun shadows (throttled, rare)
+    if (solver.coast.washed !== (st.washSeen ?? 0) && !st.washBusy && now - (st.washAt ?? 0) > 6000) {
+      st.washBusy = true; st.washAt = now;
+      const seen = solver.coast.washed;
+      solver.readWashed().then((w) => { if (w && app?.solver === solver) { world.markWashed(w); st.washSeen = seen; } }).catch(() => {}).finally(() => { st.washBusy = false; });
+    }
     if (++probeTick % 4 === 0) solver.requestProbe(pinK);
     if (probeTick % 6 === 0) updateHud();
     // adaptive sub-step budget: keep the frame ≥ ~30 fps
@@ -575,8 +807,11 @@ async function createApp(region, o) {
       fpsAcc += rdt; fpsN++;
       if (fpsAcc > 1) {
         const fps = fpsN / fpsAcc;
-        if (fps < 40 && prScale > 0.6) { prScale *= 0.85; onResize(); }
-        else if (fps > 70 && prScale < 1) { prScale = Math.min(1, prScale * 1.1); onResize(); }
+        // skip the first seconds (shader warm-up) and come back up on a 60 Hz screen: 55 fps for 3 s in a row is enough
+        fpsSec++;
+        fpsGood = fps >= 55 ? fpsGood + 1 : 0;
+        if (fpsSec > 3 && fps < 40 && prScale > 0.6) { prScale *= 0.85; fpsGood = 0; onResize(); }
+        else if (fpsGood >= 3 && prScale < 1) { prScale = Math.min(1, prScale * 1.15); fpsGood = 0; onResize(); }
         if (st.playing) {
           if (fps < 28 && st.maxSteps > 2) st.maxSteps = Math.max(2, Math.floor(st.maxSteps * 0.8));
           else if (fps > 50 && st.maxSteps < 120) st.maxSteps = Math.ceil(st.maxSteps * 1.15);
@@ -603,10 +838,11 @@ async function createApp(region, o) {
       outerSolver?.dispose();
       labels.domElement.style.visibility = '';
       $('result').hidden = true;
+      $('r-extra').innerHTML = '';
       labels.domElement.replaceChildren();
     },
     // debug / verification hooks
-    frame, st, setView, openResult, camera, controls, outerSolver, lead, pin: { x: pinX, z: pinZ, k: pinK, ground: pinGround }, dir,
+    frame, st, setView, openResult, camera, controls, outerSolver, lead, pin: { x: pinX, z: pinZ, k: pinK, ground: pinGround }, dir, tall,
   };
 }
 
@@ -618,6 +854,11 @@ function onResize() {
   if (app) { app.camera.aspect = innerWidth / innerHeight; app.camera.updateProjectionMatrix(); }
 }
 addEventListener('resize', onResize);
+// keep the dock above the (possibly two-line) credit
+{
+  const cr = document.querySelector('#sim .credit');
+  if (cr && 'ResizeObserver' in window) new ResizeObserver(() => $('sim').style.setProperty('--credit-h', `${Math.ceil(cr.getBoundingClientRect().height) + 4}px`)).observe(cr);
+}
 document.addEventListener('visibilitychange', () => {
   if (!app) return;
   if (document.hidden) renderer.setAnimationLoop(null);
@@ -625,7 +866,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── deep links & verification hooks ──
-if (qs.has('demo')) start({ demo: true, N: Number(qs.get('n') || 512), H: Number(qs.get('h') || 8) });
+if (qs.has('wash')) $('washaway').checked = qs.get('wash') !== '0';
+if (qs.has('demo')) start({ demo: true, N: Number(qs.get('n') || 512), H: Number(qs.get('h') || 8), washaway: $('washaway').checked });
 else if (qs.has('lat') && qs.has('lon')) {
   const lat = Number(qs.get('lat')), lon = Number(qs.get('lon'));
   picker.setPoint(lat, lon);
@@ -668,3 +910,19 @@ if (import.meta.env.DEV) window.__t = {
     return blob.size;
   },
 };
+
+const CREDIT0 = {};
+function esc(t) { return String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+/** distance (m) from (x, z) to a footprint ring; 0 inside */
+function distToRing(r, x, z) {
+  let inside = false, best = Infinity;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [xi, zi] = r[i], [xj, zj] = r[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+    const vx = xi - xj, vz = zi - zj, l2 = vx * vx + vz * vz || 1;
+    const t = Math.max(0, Math.min(1, ((x - xj) * vx + (z - zj) * vz) / l2));
+    best = Math.min(best, Math.hypot(xj + t * vx - x, zj + t * vz - z));
+  }
+  return inside ? 0 : best;
+}

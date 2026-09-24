@@ -1,0 +1,64 @@
+{
+ "count": 18,
+ "dimensions": [
+  1672,
+  941
+ ],
+ "requested_ratio": "16:9",
+ "actual_ratio": 1.7768331562167907,
+ "pdf_pages": 18,
+ "files_in_order": [
+  "slide-01.png",
+  "slide-02.png",
+  "slide-03.png",
+  "slide-04.png",
+  "slide-05.png",
+  "slide-06.png",
+  "slide-07.png",
+  "slide-08.png",
+  "slide-09.png",
+  "slide-10.png",
+  "slide-11.png",
+  "slide-12.png",
+  "slide-13.png",
+  "slide-14.png",
+  "slide-15.png",
+  "slide-16.png",
+  "slide-17.png",
+  "slide-18.png"
+ ],
+ "pdf": "/Users/funakoshiakira/workspace/検証用/tsunami-city-webgpu/docs/award/slides/津波防災もしも再現_PLATEAU_AWARD_2026_スライド.pdf",
+ "content_visual_qa": "record separately in QA.md",
+ "pdf_bytes": 3091898,
+ "pdf_limit_bytes": 10485760,
+ "links": [
+  {
+   "page": 15,
+   "uri": "https://share.akirafunakoshi.com/tsunami-simulation/"
+  },
+  {
+   "page": 15,
+   "uri": "https://github.com/Akira-Papa/tsunami-bousai-moshimo-saigen"
+  },
+  {
+   "page": 18,
+   "uri": "https://share.akirafunakoshi.com/tsunami-simulation/"
+  },
+  {
+   "page": 18,
+   "uri": "https://github.com/Akira-Papa/tsunami-bousai-moshimo-saigen"
+  }
+ ],
+ "pdf_mediabox_pt": [
+  802.56,
+  451.68
+ ],
+ "version": "v2 (2026-09-25)",
+ "replaced_in_v2": [
+  "slide-06.png",
+  "slide-08.png",
+  "slide-16.png",
+  "slide-17.png"
+ ],
+ "built_with": "rich-3d-business-slides/scripts/build_pdf.py → pypdf Link注釈（links.py）"
+}

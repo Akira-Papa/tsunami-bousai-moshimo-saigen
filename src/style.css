@@ -203,6 +203,39 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 
 .info { font-size: 13px; color: #d9f2ff; background: rgba(79,179,217,.14); border: 1px solid rgba(79,179,217,.5); border-radius: 8px; padding: 8px 10px; margin: 0; line-height: 1.6; }
 
-.credit { position: absolute; right: 12px; bottom: 4px; z-index: 4; margin: 0; font-size: 10px; color: rgba(233,238,243,.75); text-shadow: 0 1px 2px rgba(0,0,0,.8); pointer-events: auto; }
+.credit { position: absolute; right: 12px; bottom: 4px; z-index: 4; margin: 0; max-width: calc(100vw - 24px); text-align: right; font-size: 10px; color: rgba(233,238,243,.75); text-shadow: 0 1px 2px rgba(0,0,0,.8); pointer-events: auto; }
 .credit a { color: inherit; }
+.credit { line-height: 1.35; }
+/* the credit line can wrap to two lines on desktop: the dock and the fps line sit above it (height set from main.js) */
+@media (min-width: 761px) { .dock, .perf { bottom: calc(var(--credit-h, 14px) + 8px); } }
 @media (max-width: 760px) { .credit { display: none; } }
+
+/* ── PLATEAU AWARD additions: 高い建物（避難候補）・建物ごとの比較 ── */
+.htall { display: grid; gap: 4px; font-size: 12px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; }
+.htall b { font-size: 12px; }
+.htall b em { font-style: normal; font-weight: 500; color: var(--ink-3); margin-left: 6px; }
+.htall ol { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.htall li small { color: var(--ink-3); margin-left: 6px; }
+.htall > small { color: var(--ink-2); font-size: 11px; }
+.htall .tallb::marker, .htall .evacb::marker { font-weight: 700; }
+.tallb { color: #f7b23b; }
+.evacb { color: #3ecf8e; }
+.lbl.tallb { background: rgba(250, 178, 56, .92); color: #1d1405; }
+.lbl.evacb { background: rgba(62, 207, 142, .92); color: #04170e; }
+#r-extra { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
+#r-extra .rx { min-width: 0; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+#r-extra h3 { margin: 0 0 8px; font-size: 15px; }
+#r-extra p { margin: 6px 0 0; }
+.rtab { width: 100%; border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; }
+.rtab th, .rtab td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rtab th { color: var(--ink-3); font-weight: 500; font-size: 12px; }
+@media (max-width: 700px) {
+  .htall { grid-column: 1 / -1; font-size: 11px; gap: 2px; padding-top: 6px; }
+  .htall ol { display: flex; flex-wrap: wrap; gap: 0 14px; padding-left: 16px; }
+  .htall li small, .htall .crit { display: none; }
+}
+
+/* the start button (and any warning) stays in sight at the bottom of the scrolling card (QA #5) */
+.go-bar { position: sticky; bottom: -1px; z-index: 2; margin: 0 -2px; padding: 10px 2px 4px; background: linear-gradient(to bottom, transparent, var(--panel-solid, rgba(12, 22, 32, 0.96)) 14px); }
+.go-bar #go { width: 100%; }
+.go-bar .warn, .go-bar .info { margin: 0 0 8px; }

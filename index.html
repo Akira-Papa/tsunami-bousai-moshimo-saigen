@@ -50,7 +50,6 @@
           <label class="chk"><input type="checkbox" id="breach" checked /> 越えられた防潮壁は壊れる（内閣府・愛知県の想定と同じ条件）</label>
           <p id="crestSrc" class="src"></p>
         </div>
-        <p id="sel-warn" class="warn" hidden></p>
         <div class="sel-row small">
           <label for="quality" class="k">計算の細かさ</label>
           <select id="quality">
@@ -60,7 +59,10 @@
           </select>
         </div>
         <p id="sel-zero" class="zero" hidden></p>
-        <button id="go" class="primary">この地点で再現する</button>
+        <div class="go-bar">
+          <p id="sel-warn" class="warn" hidden></p>
+          <button id="go" class="primary">この地点で再現する</button>
+        </div>
       </div>
 
       <figure class="terms">
@@ -156,7 +158,7 @@
       </div>
     </div>
     <div id="perf" class="perf" aria-hidden="true"></div>
-    <p class="credit">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（標高・航空写真・ベクトルタイル・住所検索）／<a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">PLATEAU（国土交通省）</a>／内閣府 南海トラフ巨大地震モデル（2025）を集約加工</p>
+    <p class="credit">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（地理院タイル：写真・標高タイル、国土地理院ベクトルタイル提供実験、住所検索）。地理院タイル（標高タイル）を加工して作成／<span id="credit-plateau"><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成</span>／内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データを集約加工して作成</p>
     <div id="toast" class="toast" hidden role="status"><span id="toast-t"></span><button id="toast-yes" class="ghost small">色分けする</button><button id="toast-no" class="ghost small" aria-label="閉じる">×</button></div>
 
     <div id="result" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="r-title">
@@ -178,6 +180,7 @@
         <p class="call">強い揺れを感じたら、この結果を待たずに高い所へ。<br />近くの高い場所を、いま地図で確かめてみませんか？</p>
         <p class="links"><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noopener">重ねるハザードマップ（国土地理院）</a></p>
         <p class="fineprint" id="r-read"></p>
+        <p class="fineprint" id="r-credits"><b>データの出典</b>：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（地理院タイル：淡色地図・写真・標高タイル、国土地理院ベクトルタイル提供実験、住所検索）。地理院タイル（標高タイル）を加工して作成。<span id="r-credit-plateau"><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成。</span>内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データ（ケース01）を100mに集約加工して作成。内閣府 防災情報のページ「市区町村別最大津波高一覧」（2025）を加工して作成。「国土数値情報（行政区域データ）」（国土交通省）、総務省「全国地方公共団体コード」をもとに作成。潮位・防潮壁の既定値は名古屋港管理組合・愛知県の公表値。</p>
       </div>
     </div>
   </section>

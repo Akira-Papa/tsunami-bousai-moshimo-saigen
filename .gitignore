@@ -1,3 +1,8 @@
 node_modules
 dist
 shots
+# award media: large binaries kept local (slides PDF and texts are committed)
+docs/award/qa/
+docs/award/video/footage/
+docs/award/video/script/音声/
+docs/award/slides/slide-*.png

@@ -22,6 +22,9 @@ export function createSolver(renderer, region, opts = {}) {
   const H = opts.H ?? 5;
   const tide = opts.tide ?? 0;          // initial sea level (T.P. m): 朔望平均満潮位 where known
   const breach = opts.breach ?? true;   // 越流した堤防はその場で壊れる（内閣府・愛知県の想定条件）
+  // 木造家屋の流失: a wooden house whose surroundings reach 2 m of flow depth stops being a wall
+  // (首藤 1993: 浸水深 2 m で木造家屋は全面破壊). Off unless asked for (the solver tests use plain walls).
+  const washDepth = opts.washaway === false || opts.washaway == null ? 0 : (typeof opts.washaway === 'number' ? opts.washaway : 2.0);
   const lArr = new Float32Array(NN * 4); // levee: (is levee, ground, crest, broken)
   // one-way nesting: { solver: outer solver, offset: {x,z} of this square's centre in the outer frame }
   const nest = opts.nest ?? null;
@@ -82,6 +85,37 @@ export function createSolver(renderer, region, opts = {}) {
   }
   function smooth(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
 
+  // ── wash-away lists: the wall cells of every wooden house, and the ring of cells around it (8-neighbours
+  //    that are not the house itself and did not start under water — a quay-side house must not "wash away"
+  //    at t = 0 because the harbour next to it is 5 m deep) ──
+  const nB = region.buildings?.length ?? 0;
+  const woodCells = [], woodCellB = [], rimCells = [], rimB = [], woodIds = [];
+  if (washDepth > 0 && nB) {
+    const count = new Int32Array(nB + 1);
+    for (let k = 0; k < NN; k++) { const b = region.bldId[k]; if (b >= 0 && sArr[k * 4 + 1] > 0.5 && region.buildings[b]?.wood) count[b + 1]++; }
+    for (let b = 0; b < nB; b++) count[b + 1] += count[b];
+    const start = count.slice(0, nB + 1), byB = new Int32Array(count[nB]);
+    const fill = start.slice();
+    for (let k = 0; k < NN; k++) { const b = region.bldId[k]; if (b >= 0 && sArr[k * 4 + 1] > 0.5 && region.buildings[b]?.wood) byB[fill[b]++] = k; }
+    const stamp = new Int32Array(NN).fill(-1);
+    for (let b = 0; b < nB; b++) {
+      if (start[b + 1] === start[b]) continue;
+      woodIds.push(b);
+      for (let q = start[b]; q < start[b + 1]; q++) {
+        const k = byB[q], i = k % N, j = (k / N) | 0;
+        woodCells.push(k); woodCellB.push(b);
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          const a = i + di, c = j + dj;
+          if ((!di && !dj) || a < 0 || c < 0 || a >= N || c >= N) continue;
+          const n = c * N + a;
+          if (region.bldId[n] === b || stamp[n] === b || region.water[n] || aArr[n * 4] > 0.01) continue;
+          stamp[n] = b; rimCells.push(n); rimB.push(b);
+        }
+      }
+    }
+  }
+  const wash = washDepth > 0 && woodIds.length > 0;
+
   const S = instancedArray(sArr, 'vec4');
   const W = instancedArray(wArr, 'vec4');
   const A = instancedArray(aArr.slice(), 'vec4');
@@ -92,6 +126,15 @@ export function createSolver(renderer, region, opts = {}) {
   const LV = instancedArray(lArr, 'vec4');
   const LI = instancedArray(new Uint32Array(leveeIdx.length ? leveeIdx : [0]), 'uint');
   const breachCount = instancedArray(1, 'uint').toAtomic();
+  // wash-away state per building (0 standing, 1 washed, 2 washed & counted) + the cell lists above
+  const WF = instancedArray(new Uint32Array(Math.max(1, nB)), 'uint');
+  const WC = instancedArray(new Uint32Array(wash ? woodCells : [0]), 'uint');
+  const WCB = instancedArray(new Uint32Array(wash ? woodCellB : [0]), 'uint');
+  const RC = instancedArray(new Uint32Array(wash && rimCells.length ? rimCells : [0]), 'uint');
+  const RCB = instancedArray(new Uint32Array(wash && rimB.length ? rimB : [0]), 'uint');
+  const WI = instancedArray(new Uint32Array(wash ? woodIds : [0]), 'uint');
+  const washCount = instancedArray(1, 'uint').toAtomic();
+  const uWash = uniform(washDepth);
   const R = instancedArray(NN, 'vec4');
   const R2 = instancedArray(NN, 'vec4');
   const P = instancedArray(PARTICLES, 'vec4'); // pos, life
@@ -393,6 +436,31 @@ export function createSolver(renderer, region, opts = {}) {
     });
   })().compute(Math.max(1, leveeIdx.length));
 
+  // 木造家屋の流失 (same mechanism as the breach above, per building):
+  //  1) any cell of the ring around a wooden house carrying ≥ 2 m of water marks the house
+  //  2) every wall cell of a marked house opens (wall flag → 0; its ground stays) — water now flows through
+  //  3) newly marked houses are counted once (1 → 2) for the HUD / result
+  const washDetect = Fn(() => {
+    const k = int(RC.element(instanceIndex));
+    const b = int(RCB.element(instanceIndex));
+    If(A.element(k).x.greaterThanEqual(uWash).and(WF.element(b).equal(uint(0))), () => { WF.element(b).assign(uint(1)); });
+  })().compute(Math.max(1, rimCells.length));
+  const washApply = Fn(() => {
+    const k = int(WC.element(instanceIndex));
+    const b = int(WCB.element(instanceIndex));
+    const s = S.element(k);
+    If(WF.element(b).greaterThan(uint(0)).and(s.y.greaterThan(0.5)), () => {
+      S.element(k).assign(vec4(s.x, 0, s.z, 1)); // open land that started dry (flood-front probe)
+    });
+  })().compute(Math.max(1, woodCells.length));
+  const washTally = Fn(() => {
+    const b = int(WI.element(instanceIndex));
+    If(WF.element(b).equal(uint(1)), () => {
+      WF.element(b).assign(uint(2));
+      atomicAdd(washCount.element(0), uint(1));
+    });
+  })().compute(Math.max(1, woodIds.length));
+
   // ── host side ──
   let parity = 0;
   let time = 0;
@@ -432,12 +500,13 @@ export function createSolver(renderer, region, opts = {}) {
     uFrame.value.set(steps * dt, time, sprayRate, frameNo % 9973);
     renderer.compute(parity ? aux10 : aux01);
     if (breach && leveeIdx.length) renderer.compute(breachKernel);
+    if (wash) renderer.compute([washDetect, washApply, washTally]);
     parity ^= 1;
   }
   // coastal level readback (4 bytes, non-blocking) + controller
-  const rbC = new THREE.ReadbackBuffer(4), rbF = new THREE.ReadbackBuffer(4), rbS = new THREE.ReadbackBuffer(8), rbB = new THREE.ReadbackBuffer(4);
+  const rbC = new THREE.ReadbackBuffer(4), rbF = new THREE.ReadbackBuffer(4), rbS = new THREE.ReadbackBuffer(8), rbB = new THREE.ReadbackBuffer(4), rbW = new THREE.ReadbackBuffer(4);
   let cBusy = false, cTick = 0;
-  const coast = { now: NaN, max: -Infinity, front: Infinity, mean: NaN, meanMax: -Infinity, breached: 0, levees: leveeIdx.length };
+  const coast = { now: NaN, max: -Infinity, front: Infinity, mean: NaN, meanMax: -Infinity, breached: 0, levees: leveeIdx.length, washed: 0, woodHouses: wash ? woodIds.length : 0 };
   let dead = false;
   function coastUpdate() {
     if (cBusy || ++cTick % 6) return;
@@ -451,9 +520,11 @@ export function createSolver(renderer, region, opts = {}) {
       renderer.getArrayBufferAsync(coastSum.value, rbS, 0, 8),
       // the breach counter only exists on the GPU when there are levees (reading it otherwise rejects the whole batch)
       leveeIdx.length ? renderer.getArrayBufferAsync(breachCount.value, rbB, 0, 4) : Promise.resolve(null),
-    ]).then(([r, f, sm, bc]) => {
+      wash ? renderer.getArrayBufferAsync(washCount.value, rbW, 0, 4) : Promise.resolve(null),
+    ]).then(([r, f, sm, bc, wc]) => {
       if (dead) return;
       if (bc) coast.breached = new Uint32Array(bc.buffer ?? bc, bc.byteOffset ?? 0, 1)[0];
+      if (wc) coast.washed = new Uint32Array(wc.buffer ?? wc, wc.byteOffset ?? 0, 1)[0];
       const u = new Uint32Array(r.buffer ?? r, r.byteOffset ?? 0, 1)[0];
       const fu = new Uint32Array(f.buffer ?? f, f.byteOffset ?? 0, 1)[0];
       const su = new Uint32Array(sm.buffer ?? sm, sm.byteOffset ?? 0, 2);
@@ -478,7 +549,7 @@ export function createSolver(renderer, region, opts = {}) {
         const rate = (err < 0 ? 0.012 : rising ? 0 : 0.004) * dts;
         wave.gain = Math.min(1.3, Math.max(0.25, wave.gain * (1 + Math.min(0.3, rate) * Math.max(-0.6, Math.min(0.6, err)))));
       }
-    }).catch(() => {}).finally(() => { rbC.release?.(); rbF.release?.(); rbS.release?.(); if (leveeIdx.length) rbB.release?.(); cBusy = false; });
+    }).catch(() => {}).finally(() => { rbC.release?.(); rbF.release?.(); rbS.release?.(); if (leveeIdx.length) rbB.release?.(); if (wash) rbW.release?.(); cBusy = false; });
   }
 
   function pack(pdt = 0) {
@@ -508,23 +579,30 @@ export function createSolver(renderer, region, opts = {}) {
     const buf = await renderer.getArrayBufferAsync(M.value);
     return new Float32Array(buf);
   }
+  /** per-building wash state (0 standing, ≥1 washed away); null when the rule is off */
+  async function readWashed() {
+    if (!wash) return null;
+    const buf = await renderer.getArrayBufferAsync(WF.value);
+    return new Uint32Array(buf.buffer ?? buf, buf.byteOffset ?? 0, Math.max(1, nB)).slice(0, nB);
+  }
 
   return {
-    N, dx, L, dt, wave, etaTarget, step, pack, requestProbe, probe, readAll, coast, nested: !!nest,
+    N, dx, L, dt, wave, etaTarget, step, pack, requestProbe, probe, readAll, readWashed, coast, nested: !!nest,
+    washDepth: wash ? washDepth : 0, woodHouses: wash ? woodIds.length : 0,
     /** advance the clock without computing (a nested square that the flood has not reached yet) */
     idle(T) { if (T > time) { time = T; uFrame.value.y = time; } },
     setPin(i, j) { uPin.value.set(i, j); },
     get time() { return time; },
-    buffers: { A, S, W, R, R2, M, P, V, LV, LI }, surfTex, envTex, leveeCount: leveeIdx.length,
+    buffers: { A, S, W, R, R2, M, P, V, LV, LI, WF }, surfTex, envTex, leveeCount: leveeIdx.length, buildingCount: nB,
     /** free the GPU buffers of this town (re-picking a point would otherwise leak ~0.3 GB at 1280²) */
     dispose() {
       dead = true;
-      for (const kn of [stage1, stage2, aux01, aux10, pack0, pack1, particleUpdate, coastReset, coastProbe, frontProbe, breachKernel]) kn.dispose?.();
-      for (const b of [S, W, A, B, T0, T1, M, R, R2, P, V, counter, CI, coastMax, coastSum, frontMin, LV, LI, breachCount]) {
+      for (const kn of [stage1, stage2, aux01, aux10, pack0, pack1, particleUpdate, coastReset, coastProbe, frontProbe, breachKernel, washDetect, washApply, washTally]) kn.dispose?.();
+      for (const b of [S, W, A, B, T0, T1, M, R, R2, P, V, counter, CI, coastMax, coastSum, frontMin, LV, LI, breachCount, WF, WC, WCB, RC, RCB, WI, washCount]) {
         try { renderer._attributes?.delete(b.value); } catch { /* already gone */ }
       }
       surfTex.dispose(); envTex.dispose();
-      for (const r of [rbA, rbM, rbC, rbF, rbS, rbB]) r.dispose?.();
+      for (const r of [rbA, rbM, rbC, rbF, rbS, rbB, rbW]) r.dispose?.();
     },
     compileAll: async () => {
       const keep = uPrm.value.x;
@@ -535,6 +613,8 @@ export function createSolver(renderer, region, opts = {}) {
       renderer.compute(pack0); renderer.compute(pack1);
       renderer.compute(particleUpdate);
       if (leveeIdx.length) { const keepB = uWave.value.x; renderer.compute(breachKernel); uWave.value.x = keepB; }
+      // nothing is ≥ 2 m deep on land at t = 0 (initially wet cells are not in the ring) → compiling is harmless
+      if (wash) renderer.compute([washDetect, washApply, washTally]);
       // the warm-up above advanced nothing physically meaningful except aux; reset clocks
       time = 0; frameNo = 0;
     },

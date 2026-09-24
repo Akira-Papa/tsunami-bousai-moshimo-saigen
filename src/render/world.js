@@ -204,8 +204,37 @@ export function createWorld(renderer, region, solver, opts = {}) {
   }
 
   // ── buildings ──
-  const buildings = makeBuildings(region, envT, photoTex, uShowOfficial);
+  const uShowTall = uniform(1);
+  const bldg = makeBuildings(region, envT, photoTex, solver, uShowTall);
+  const buildings = bldg.mesh;
   scene.add(buildings);
+
+  /** highlight state per building index: 0 none, 1 高い建物（避難候補）, 2 津波避難ビル等 (PLATEAU attribute) */
+  function setHighlight(states) {
+    const a = buildings.geometry.attributes.bextra;
+    for (let id = 0; id < bldg.ranges.length; id++) {
+      const [s0, n] = bldg.ranges[id];
+      const v = states.get(id) ?? 0;
+      for (let q = s0; q < s0 + n; q++) a.array[q * 4 + 2] = v;
+    }
+    a.needsUpdate = true;
+  }
+  /** houses washed away: drop them from the bed info (water reflections / sun level) and redraw the shadows */
+  function markWashed(washed) {
+    let any = false;
+    for (let k = 0; k < N * N; k++) {
+      const b = region.bldId[k];
+      if (b >= 0 && washed[b] && bedArr[k * 4 + 1] > 0) { bedArr[k * 4 + 1] = 0; any = true; }
+    }
+    if (!any) return;
+    const bldH = region.bldH;
+    region.bldH = Float32Array.from(bldH, (h, k) => (bedArr[k * 4 + 1] > 0 ? h : 0));
+    bakeSunLevel();
+    region.bldH = bldH; // the grid geometry stays as built; only the drawing forgets the washed houses
+    bedTex.image.data.set(toHalf(bedArr));
+    bedTex.needsUpdate = true;
+    sun.shadow.needsUpdate = true;
+  }
 
   // ── water ──
   const water = (() => {
@@ -292,7 +321,7 @@ export function createWorld(renderer, region, solver, opts = {}) {
   }
 
   return {
-    scene, camera, pipeline, uEnv, uL, setSun, uShowOfficial, uShowMax, uOuterEta, outerLayer,
+    scene, camera, pipeline, uEnv, uL, setSun, uShowOfficial, uShowMax, uOuterEta, outerLayer, uShowTall, setHighlight, markWashed,
     terrain, buildings, water, spray, renderCaustics, causticScene, causticCam,
     dispose() {
       for (const sc of [scene, causticScene]) sc.traverse((o) => {
@@ -436,12 +465,16 @@ function makeSkirt(region) {
   return new THREE.Mesh(g, m);
 }
 
-function makeBuildings(region, envT, photoTex, uShowOfficial) {
+function makeBuildings(region, envT, photoTex, solver, uShowTall) {
   const { L } = region;
   const half = L / 2;
-  const pos = [], nor = [], uvs = [], info = [];
-  const push = (x, y, z, nx, ny, nz, u, v, a, b, c, d) => { pos.push(x, y, z); nor.push(nx, ny, nz); uvs.push(u, v); info.push(a, b, c, d); };
+  const pos = [], nor = [], uvs = [], info = [], extra = [];
+  const ranges = [];
+  let cur = null;
+  const push = (x, y, z, nx, ny, nz, u, v, a, b, c, d) => { pos.push(x, y, z); nor.push(nx, ny, nz); uvs.push(u, v); info.push(a, b, c, d); extra.push(cur.id, cur.base, 0, 0); };
   region.buildings.forEach((b, id) => {
+    cur = { id, base: b.base };
+    const v0 = pos.length / 3;
     let ring = b.ring;
     // CCW (seen from above, y-up with z-south) → outward normals
     let area = 0;
@@ -476,12 +509,15 @@ function makeBuildings(region, envT, photoTex, uShowOfficial) {
         push(x, top, z, 0, 1, 0, (x + half) / L, (z + half) / L, top - b.base, seed, kind, 1);
       }
     }
+    ranges[id] = [v0, pos.length / 3 - v0];
   });
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   g.setAttribute('binfo', new THREE.Float32BufferAttribute(info, 4));
+  // (building index, local ground, highlight state, _) — highlight is rewritten by setHighlight()
+  g.setAttribute('bextra', new THREE.Float32BufferAttribute(extra, 4));
   // fix roof winding: triangles were pushed [0,2,1]; ensure facing up
   const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0.0, side: THREE.DoubleSide });
   const bi = attribute('binfo', 'vec4');
@@ -511,10 +547,26 @@ function makeBuildings(region, envT, photoTex, uShowOfficial) {
   wall = mix(wall, vec3(0.22, 0.18, 0.13), line.mul(0.9));
   const roofPhoto = texture(photoTex, wuv).rgb;
   const roof = mix(roofPhoto.mul(1.05), vec3(0.55, 0.55, 0.55), 0.25);
-  m.colorNode = mix(wall, roof, isRoof);
+  let col = mix(wall, roof, isRoof);
+  const bx = attribute('bextra', 'vec4');
+  // 高い建物（避難候補）= amber, 津波避難ビル等 = green; roofs strongly (seen from above), walls lightly
+  const hl = bx.z.mul(uShowTall);
+  const hlCol = select(hl.greaterThan(1.5), vec3(0.24, 0.80, 0.52), vec3(0.98, 0.70, 0.22));
+  col = mix(col, hlCol, select(hl.greaterThan(0.5), mix(float(0.35), float(0.85), isRoof), float(0)));
+  // 木造家屋の流失: a washed house collapses into a low heap of brown debris
+  if (solver?.washDepth > 0) {
+    const WFr = storage(solver.buffers.WF.value, 'uint', Math.max(1, solver.buildingCount)).toReadOnly();
+    const washed = WFr.element(int(bx.x)).greaterThan(0);
+    const heap = bx.y.add(0.5).add(seed.mul(0.5));
+    m.positionNode = select(washed, vec3(positionLocal.x, min(positionLocal.y, heap), positionLocal.z), positionLocal);
+    const n = fract(sin(positionWorld.x.mul(12.9898).add(positionWorld.z.mul(78.233))).mul(43758.5453));
+    const debris = mix(vec3(0.30, 0.24, 0.17), vec3(0.46, 0.40, 0.31), n);
+    col = select(washed, debris, col);
+  }
+  m.colorNode = col;
   m.roughnessNode = mix(float(0.8), float(0.25), win.mul(isRoof.oneMinus()));
   const mesh = new THREE.Mesh(g, m);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  return mesh;
+  return { mesh, ranges };
 }

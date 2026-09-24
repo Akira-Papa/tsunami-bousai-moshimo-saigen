@@ -10,7 +10,9 @@ export const URLS = {
   dem10: (t) => `${GSI}/dem_png/${t.z}/${t.x}/${t.y}.png`,
   photo: (t) => `${GSI}/seamlessphoto/${t.z}/${t.x}/${t.y}.jpg`,
   bvmap: (t) => `${GSI}/experimental_bvmap/${t.z}/${t.x}/${t.y}.pbf`,
-  plateau: 'https://shiworks.xsrv.jp/pmtiles-data/plateau/PLATEAU_2022_LOD1.pmtiles',
+  // community conversion of PLATEAU LOD1 (shiwaku/mlit-plateau-bldg-pmtiles); the converter's current URL
+  // (the old shiworks.xsrv.jp mirror serves the same 1,159,134,423-byte file)
+  plateau: 'https://shi-works.com/pmtiles/plateau/PLATEAU_2022_LOD1.pmtiles',
 };
 
 /** fetch with timeout; 404 → null (GSI returns 404 for sea / no data), other failures throw */
@@ -55,7 +57,13 @@ export async function loadDemMosaic(bbox, z, urlFn, onTile) {
   let got = 0, failed = 0;
   await pool(tiles, 6, async (t) => {
     let r = null;
-    try { r = await fetchOk(urlFn(t)); } catch { failed++; onTile?.(); return; }
+    // a network failure is not "sea": retry twice, then count it so the caller can stop instead of flooding the hole
+    for (let k = 0; ; k++) {
+      try { r = await fetchOk(urlFn(t)); break; } catch {
+        if (k >= 2) { failed++; onTile?.(); return; }
+        await new Promise((ok) => setTimeout(ok, 600 * (k + 1)));
+      }
+    }
     onTile?.();
     if (!r) return;
     const { data } = await decodeImage(r);
@@ -197,31 +205,107 @@ function tileLines(buf, t, frame) {
   return out;
 }
 
-/** building footprints (local metres) with heights: PLATEAU LOD1 where available, GSI bvmap otherwise;
- *  plus the GSI seawall / revetment / floodgate lines of the same tiles */
+// ── PLATEAU official attributes prepared by the A1 pipeline (public/plateau/, optional) ──
+//  index.json : { source, license, z: 16, tiles: ["x_y", ...], fields: {...} }
+//  16/{x}_{y}.json : [{ ring: [[lon,lat],...], h, s, st: wood|rc|src|steel|other|null, u, td, evac, id }]
+// Missing files are normal (the pipeline may not have run): every failure falls back to PMTiles → bvmap.
+const BASE = import.meta.env.BASE_URL;
+let plateauIndexP = null;
+export function loadPlateauIndex() {
+  return (plateauIndexP ??= fetch(`${BASE}plateau/index.json`)
+    // the dev server answers unknown paths with index.html (200) → r.json() throws → no local data
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (j && Array.isArray(j.tiles) && (j.z ?? 16) === 16 ? { ...j, set: new Set(j.tiles.map(String)) } : null))
+    .catch(() => null));
+}
+
+const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
+
+async function localTileFeatures(t, frame) {
+  const r = await fetchOk(`${BASE}plateau/16/${t.x}_${t.y}.json`);
+  if (!r) return [];
+  const arr = await r.json();
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const b of arr) {
+    if (!Array.isArray(b?.ring) || b.ring.length < 3) continue;
+    const pts = b.ring.map(([lon, lat]) => { const p = frame.toLocal(lat, lon); return [p.x, p.z]; });
+    if (pts.length > 3 && pts[0][0] === pts.at(-1)[0] && pts[0][1] === pts.at(-1)[1]) pts.pop();
+    if (pts.length < 3 || Math.abs(ringArea(pts)) < 1) continue;
+    const st = typeof b.st === 'string' ? b.st : null;
+    // evac: false, true, or the name of the designated site (指定緊急避難場所・津波) the A1 join found
+    const evac = typeof b.evac === 'string' ? (b.evac && b.evac !== 'false' ? b.evac : false) : !!b.evac;
+    // sc (extension): bldg:class — sturdy (堅ろう) / ordinary (普通) / shed / sturdy_shed; not the structure itself
+    const sc = typeof b.sc === 'string' ? b.sc : null;
+    const attrs = { h: numOrNull(b.h), s: numOrNull(b.s), st, sc, u: b.u ?? null, td: numOrNull(b.td), evac, id: b.id ?? null };
+    out.push({ ring: pts, src: 'plateau', local: true, attrs, props: { measuredHeight: attrs.h, storeysAboveGround: attrs.s } });
+  }
+  return out;
+}
+
+/** structure unknown (PMTiles LOD1 or a local record with st = null): borrow the GSI class of the same
+ *  footprint — 普通建物 (3101) is taken as wooden, as agreed for the wash-away rule */
+function tagGsiClass(feats, gsi) {
+  const boxes = gsi.map((g) => {
+    let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity;
+    for (const [x, z] of g.ring) { a = Math.min(a, x); b = Math.max(b, x); c = Math.min(c, z); d = Math.max(d, z); }
+    return [a, b, c, d];
+  });
+  for (const f of feats) {
+    if (f.attrs?.st || f.attrs?.sc) continue;
+    let cx = 0, cz = 0;
+    for (const [x, z] of f.ring) { cx += x; cz += z; }
+    cx /= f.ring.length; cz /= f.ring.length;
+    for (let i = 0; i < gsi.length; i++) {
+      const bx = boxes[i];
+      if (cx < bx[0] || cx > bx[1] || cz < bx[2] || cz > bx[3]) continue;
+      if (inRing(gsi[i].ring, cx, cz)) { f.props = { ...f.props, gsiFt: gsi[i].props?.ftCode }; break; }
+    }
+  }
+}
+function inRing(r, x, z) {
+  let inside = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [xi, zi] = r[i], [xj, zj] = r[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** building footprints (local metres) with heights: the A1 PLATEAU extract (attributes) where present,
+ *  then PLATEAU LOD1 PMTiles, then GSI bvmap; plus the GSI seawall / revetment / floodgate lines */
 export async function loadBuildings(frame, L, onTile) {
   const h = L / 2 + 30;
   const nw = frame.toLatLon(-h, -h), se = frame.toLatLon(h, h);
   const tiles = tilesFor({ west: nw.lon, east: se.lon, north: nw.lat, south: se.lat }, 16);
   const all = [], lines = [];
-  const stats = { plateau: 0, bvmap: 0, tiles: tiles.length, failed: 0, lineTiles: 0 };
+  const stats = { plateau: 0, plateauLocal: 0, bvmap: 0, tiles: tiles.length, localTiles: 0, failed: 0, lineTiles: 0 };
+  const idx = await loadPlateauIndex();
   await pool(tiles, 6, async (t) => {
     let feats = [];
     const bvP = fetchOk(URLS.bvmap(t)).then((r) => (r ? r.arrayBuffer() : null)).catch(() => { stats.failed++; return null; });
-    try {
-      const r = await plateauSrc().getZxy(16, t.x, t.y);
-      if (r?.data) feats = tileFeatures(r.data, 'PLATEAU', t, frame).map((f) => ({ ...f, src: 'plateau' }));
-    } catch { /* PLATEAU mirror unreachable → bvmap */ }
+    if (idx?.set.has(`${t.x}_${t.y}`)) {
+      try { feats = await localTileFeatures(t, frame); if (feats.length) stats.localTiles++; } catch { feats = []; }
+    }
+    if (!feats.length) {
+      try {
+        const r = await plateauSrc().getZxy(16, t.x, t.y);
+        if (r?.data) feats = tileFeatures(r.data, 'PLATEAU', t, frame).map((f) => ({ ...f, src: 'plateau' }));
+      } catch { /* PLATEAU mirror unreachable → bvmap */ }
+    }
     const bv = await bvP;
     if (bv) {
-      if (!feats.length) feats = tileFeatures(bv, 'building', t, frame).map((f) => ({ ...f, src: 'bvmap' }));
+      const gsi = tileFeatures(bv, 'building', t, frame);
+      if (!feats.length) feats = gsi.map((f) => ({ ...f, src: 'bvmap' }));
+      else tagGsiClass(feats, gsi);
       lines.push(...tileLines(bv, t, frame));
       stats.lineTiles++;
     }
-    for (const f of feats) { stats[f.src]++; all.push(f); }
+    for (const f of feats) { stats[f.local ? 'plateauLocal' : f.src]++; all.push(f); }
     onTile?.();
   });
-  return { list: all, lines, stats };
+  const plateau = idx && stats.localTiles ? { source: idx.source ?? null, license: idx.license ?? null, fields: idx.fields ?? null } : null;
+  return { list: all, lines, stats, plateau };
 }
 
 /** coarse vector data for the wide (outer) square: z14 GSI tiles → seawall/revetment/gate lines + solid buildings */

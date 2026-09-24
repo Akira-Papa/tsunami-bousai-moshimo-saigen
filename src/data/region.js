@@ -57,6 +57,8 @@ export async function buildRegion(o) {
 
   const [[d5, d10], photo, bld, official, outer] = await Promise.all([dems, photoP, bldP, offP, outerP]);
   if (d5.got + d10.got === 0 && d5.failed + d10.failed > 0) throw new Error('標高タイルを取得できませんでした（通信を確認してください）');
+  // the 10 m mosaic is the fallback under every 5 m hole: a missing 10 m tile would turn land into "sea"
+  if (d10.failed > 0) throw new Error(`地形の一部（標高タイル${d10.failed}枚）を取得できませんでした。このまま計算すると陸が海として扱われるため中止しました。もう一度お試しください`);
   prog('計算格子を組み立て中…', 0.96);
 
   // ── ground ──
@@ -77,6 +79,7 @@ export async function buildRegion(o) {
   res.outer = outer;
   res.official = official;
   res.stats = { dem5aShare: fromFine / (N * N), buildings: bld.stats, photoTiles: photo.got };
+  res.plateau = bld.plateau; // { source, license, fields } when the A1 PLATEAU extract covered this square
   return res;
 }
 
@@ -99,7 +102,7 @@ export async function buildOuterRegion(o) {
   const vecP = loadVectorCoarse(frame, L, tick);
   total = Math.ceil((L / 2000 + 1) ** 2) * 3;
   const [dem, photo, vec] = await Promise.all([demP, photoP, vecP]);
-  if (dem.got === 0 && dem.failed > 0) throw new Error('広域の標高タイルを取得できませんでした');
+  if (dem.failed > 0) throw new Error(`広域の地形の一部（標高タイル${dem.failed}枚）を取得できませんでした。もう一度お試しください`);
   const ground = new Float32Array(N * N), water = new Uint8Array(N * N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const p = frame.toLatLon(-half + (i + 0.5) * dx, -half + (j + 0.5) * dx);
@@ -233,7 +236,10 @@ export function finishRegion({ N, L, dx, ground, water, frame, buildings, center
       if (water[k]) continue;
       if (height > bldH[k]) { bldH[k] = height; bldId[k] = id; }
     }
-    blds.push({ ring: r, height, base: gmin, top: gmax + height, cx, cz, src: b.src, kind: b.kind ?? kindOf(b), cells });
+    const kind = b.kind ?? kindOf(b);
+    const wood = kind !== 'shed' && isWood(b, kind);
+    // woodEst: "wooden" inferred from the 普通建物 class (it also holds 2-storey RC) — the screen must say so
+    blds.push({ ring: r, height, base: gmin, top: gmax + height, cx, cz, src: b.src, kind, cells, wood, woodEst: wood && b.attrs?.st !== 'wood', attrs: b.attrs ?? null });
   });
 
   // ── seawalls / revetments / floodgates (GSI 5103 coastline-at-levee, 5203 river-at-levee, 5515 gate) ──
@@ -277,8 +283,24 @@ function blur(src, N, r) {
 }
 
 function kindOf(b) {
+  // PLATEAU attributes: 構造種別 = 木造, or (structure unknown) 建物区分 = 普通建物 → rasterised like the GSI 普通建物
+  // (no inset, 汐見 r2 #4); 無壁舎 lets water through like the GSI 無壁舎 (D3)
+  const a = b.attrs;
+  if (a?.st === 'wood' || (!a?.st && a?.sc === 'ordinary')) return 'normal';
+  if (a?.sc === 'shed' || a?.sc === 'sturdy_shed') return 'shed';
   if (b.src === 'plateau') return 'plateau';
   return { 3101: 'normal', 3102: 'solid', 3103: 'tall', 3111: 'shed', 3112: 'shed' }[b.props?.ftCode] ?? 'normal';
+}
+
+/** wooden house (washes away at 2 m, 首藤1993): PLATEAU 構造種別 when known; otherwise the 普通建物 class
+ *  of the same public-survey legend — PLATEAU bldg:class (sc = ordinary) when present, else the GSI
+ *  普通建物 (3101): for bvmap footprints directly, for PLATEAU footprints via the GSI polygon under them */
+function isWood(b, kind) {
+  const st = b.attrs?.st;
+  if (st) return st === 'wood';
+  if (b.attrs?.sc) return b.attrs.sc === 'ordinary';
+  if (b.src === 'bvmap' || b.src === 'synthetic') return kind === 'normal';
+  return b.props?.gsiFt === 3101;
 }
 
 /** measured height (PLATEAU) or a deterministic estimate from the GSI building class */
