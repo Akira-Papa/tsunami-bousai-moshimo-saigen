@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>ソルバー検証</title></head>
+<body style="font-family:monospace;background:#111;color:#ddd">
+<h1>浅水方程式ソルバー検証</h1><pre id="o">running…</pre>
+<script type="module">
+import { runTests } from './src/test/tests.js';
+try { const r = await runTests(); window.__results = r; document.getElementById('o').textContent = JSON.stringify(r, null, 2); }
+catch (e) { window.__results = { error: String(e) }; document.getElementById('o').textContent = e.stack; }
+</script>
+</body></html>
