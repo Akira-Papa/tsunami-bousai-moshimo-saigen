@@ -4,6 +4,8 @@
 
 最初に見せる地域は名古屋です（名古屋港・海抜ゼロメートル地帯のプリセットあり）。
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 - 公開ページ：https://share.akirafunakoshi.com/tsunami-simulation/
 - リポジトリ：https://github.com/Akira-Papa/tsunami-bousai-moshimo-saigen（開発時の作業名は「津波シティ」／tsunami-city-webgpu）
 
@@ -54,3 +56,19 @@ npm run dev   # http://127.0.0.1:5341
 - `docs/04_満潮位と防潮壁の追加.md`：一次情報の出典つき
 - `docs/05_内陸地点のネスト計算.md`：名古屋駅などを計算できるようにした二段計算
 - `docs/review1`〜`review3/`：各周のスクリーンショット
+
+## ライセンス
+
+**ソースコード**（`src/`、`index.html`、`test.html`、設定ファイル、`docs/` の文章）は [MIT License](LICENSE) です。改変・再配布・商用利用を含めて自由に使えます。著作権表示とライセンス文を残してください。
+
+**同梱データと実行時に取得するデータ**には MIT は適用されません。それぞれの提供元の利用規約に従い、利用するときは出典を表示してください。
+
+| データ | 場所 | 提供元・利用条件 |
+|---|---|---|
+| 市区町村別の津波高（2025・2012） | `public/data/tsunami_h.json` | 内閣府 南海トラフ巨大地震対策検討ワーキンググループ資料を整形。[内閣府 公共データ利用規約（第1.0版）](https://www.cao.go.jp/notice/rule.html)・出典明記 |
+| 市区町村の代表点・範囲 | `public/data/municipalities.json` | 国土数値情報 行政区域データ N03（2025）、総務省 全国地方公共団体コード。[国土数値情報 利用規約](https://nlftp.mlit.go.jp/ksj/other/agreement.html)・出典明記 |
+| 浸水深・到達時間（100m集約） | `public/inundation/` | 内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水メッシュ（ケース01）を独自に集約加工したもの。原データ（10mメッシュ）は含まない。[データセット](https://www.geospatial.jp/ckan/dataset/26804359-b035-4df2-84cc-eb2121172a1e)・[利用規約](https://www.geospatial.jp/ckan/dataset/26804359-b035-4df2-84cc-eb2121172a1e/resource/414d34d1-6277-4f80-8137-d63dc9212c67/download/license.pdf) |
+| 標高・航空写真・ベクトルタイル・住所検索（実行時に取得） | — | [国土地理院](https://maps.gsi.go.jp/development/ichiran.html)。[国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html)に従い出典を表示 |
+| 3D都市モデルの建物（実行時に取得） | — | [PLATEAU（国土交通省）](https://www.mlit.go.jp/plateau/)のLOD1を、有志が変換・配信しているPMTilesから取得。[PLATEAU サイトポリシー](https://www.mlit.go.jp/plateau/site-policy/)に従う |
+
+このサイトは仮定の再現で、**予測ではありません**。避難の判断には、自治体のハザードマップと公式の津波浸水想定を使ってください。作者は、このソフトウェアとデータの利用によって生じた結果について責任を負いません（MIT Licenseの免責条項と同じ）。

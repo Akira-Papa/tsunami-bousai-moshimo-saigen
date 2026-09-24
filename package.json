@@ -2,6 +2,10 @@
   "name": "tsunami-bousai-moshimo-saigen",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "description": "津波防災もしも再現：WebGPU＋TSLの浅水方程式で、地図で選んだ街に仮定の津波が水として押し寄せる様子を再現する",
+  "repository": "github:Akira-Papa/tsunami-bousai-moshimo-saigen",
+  "homepage": "https://share.akirafunakoshi.com/tsunami-simulation/",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5341 --strictPort",
