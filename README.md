@@ -1,10 +1,11 @@
-# 津波シティ もしも再現（tsunami-city-webgpu）
+# 津波防災もしも再現（tsunami-bousai-moshimo-saigen）
 
 地図で地点を選ぶと、その街の実際の地形と建物の上に、仮定の津波が「水」として押し寄せます。建物にぶつかり、道や運河を流れ、盛土で止まる様子を、非線形浅水方程式でGPU計算して見せるサイトです。**予測ではありません。**
 
 最初に見せる地域は名古屋です（名古屋港・海抜ゼロメートル地帯のプリセットあり）。
 
 - 公開ページ：https://share.akirafunakoshi.com/tsunami-simulation/
+- リポジトリ：https://github.com/Akira-Papa/tsunami-bousai-moshimo-saigen（開発時の作業名は「津波シティ」／tsunami-city-webgpu）
 
 ## 起動
 ```bash

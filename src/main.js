@@ -1,4 +1,4 @@
-// 津波シティ もしも再現 — app flow: pick a point → build the town → GPU tsunami → compare
+// 津波防災もしも再現 — app flow: pick a point → build the town → GPU tsunami → compare
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
