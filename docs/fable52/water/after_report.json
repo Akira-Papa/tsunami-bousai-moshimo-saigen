@@ -1,0 +1,147 @@
+{
+  "label": "after",
+  "at": "2026-11-10T09:06:18.605Z",
+  "runs": [
+    {
+      "name": "nagoya_pc",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "errors": [],
+      "shots": [
+        "after_nagoya_pc_over_300s.png",
+        "after_nagoya_pc_pin_300s.png",
+        "after_nagoya_pc_eye_300s.png",
+        "after_nagoya_pc_impact_300s.png",
+        "after_nagoya_pc_over_700s.png",
+        "after_nagoya_pc_pin_700s.png",
+        "after_nagoya_pc_eye_700s.png",
+        "after_nagoya_pc_impact_700s.png",
+        "after_nagoya_pc_over_1100s.png",
+        "after_nagoya_pc_pin_1100s.png",
+        "after_nagoya_pc_eye_1100s.png",
+        "after_nagoya_pc_impact_1100s.png",
+        "after_nagoya_pc_over_1750s.png",
+        "after_nagoya_pc_pin_1750s.png",
+        "after_nagoya_pc_eye_1750s.png",
+        "after_nagoya_pc_impact_1750s.png"
+      ],
+      "numbers": [
+        {
+          "t": 303.32,
+          "now": "0.00",
+          "max": "0.00m",
+          "v": "—",
+          "arr": "約100m"
+        },
+        {
+          "t": 700.62,
+          "now": "0.00",
+          "max": "0.00m",
+          "v": "—",
+          "arr": "約40m"
+        },
+        {
+          "t": 1102.19,
+          "now": "1.32",
+          "max": "1.32m",
+          "v": "1.0m/s",
+          "arr": "この地点に到達"
+        },
+        {
+          "t": 1751.54,
+          "now": "1.24",
+          "max": "1.71m",
+          "v": "0.8m/s",
+          "arr": "この地点に到達"
+        }
+      ],
+      "fps": {
+        "over": "60 fps · 格子 768² · 実効 ×21",
+        "pin": "60 fps · 格子 768² · 実効 ×21",
+        "eye": "60 fps · 格子 768² · 実効 ×21",
+        "impact": "60 fps · 格子 768² · 実効 ×0"
+      },
+      "pixelRatio": 1
+    },
+    {
+      "name": "nagoya_sp",
+      "vp": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "errors": [],
+      "shots": [
+        "after_nagoya_sp_over_700s.png",
+        "after_nagoya_sp_eye_700s.png",
+        "after_nagoya_sp_over_1100s.png",
+        "after_nagoya_sp_eye_1100s.png"
+      ],
+      "numbers": [
+        {
+          "t": 703.06,
+          "now": "0.00",
+          "max": "0.00m",
+          "v": "—",
+          "arr": "約80m"
+        },
+        {
+          "t": 1104.02,
+          "now": "1.21",
+          "max": "1.23m",
+          "v": "1.2m/s",
+          "arr": "この地点に到達"
+        }
+      ],
+      "fps": {
+        "over": "60 fps · 格子 512² · 実効 ×21",
+        "eye": "60 fps · 格子 512² · 実効 ×21"
+      },
+      "pixelRatio": 2
+    },
+    {
+      "name": "kochi_pc",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "errors": [],
+      "shots": [
+        "after_kochi_pc_over_400s.png",
+        "after_kochi_pc_eye_400s.png",
+        "after_kochi_pc_impact_400s.png",
+        "after_kochi_pc_over_800s.png",
+        "after_kochi_pc_eye_800s.png",
+        "after_kochi_pc_impact_800s.png"
+      ],
+      "numbers": [
+        {
+          "t": 403.45,
+          "now": "0.00",
+          "max": "0.00m",
+          "v": "—",
+          "arr": "約170m"
+        },
+        {
+          "t": 803.13,
+          "now": "6.83",
+          "max": "6.84m",
+          "v": "2.0m/s",
+          "arr": "この地点に到達"
+        }
+      ],
+      "fps": {
+        "over": "39 fps · 格子 768² · 実効 ×20",
+        "eye": "60 fps · 格子 768² · 実効 ×20",
+        "impact": "60 fps · 格子 768² · 実効 ×20"
+      },
+      "pixelRatio": 0.9129921937890618
+    }
+  ]
+}
