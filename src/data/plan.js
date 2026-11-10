@@ -5,8 +5,9 @@ import { loadDemMosaic, URLS, fetchOk } from './tiles.js';
 
 const base = import.meta.env.BASE_URL;
 let tsunamiP = null, muniP = null;
-export const loadTsunamiTable = () => (tsunamiP ??= fetch(`${base}data/tsunami_h.json`).then((r) => r.json()));
-export const loadMunicipalities = () => (muniP ??= fetch(`${base}data/municipalities.json`).then((r) => r.json()));
+// a failed load is not kept: choosing the point again really does fetch again
+export const loadTsunamiTable = () => (tsunamiP ??= fetch(`${base}data/tsunami_h.json`).then((r) => { if (!r.ok) throw new Error('tsunami_h ' + r.status); return r.json(); }).catch((e) => { tsunamiP = null; throw e; }));
+export const loadMunicipalities = () => (muniP ??= fetch(`${base}data/municipalities.json`).then((r) => { if (!r.ok) throw new Error('municipalities ' + r.status); return r.json(); }).catch((e) => { muniP = null; throw e; }));
 
 /** nearest wide open water from (lat, lon) within ±R metres, sampled every `step` metres on DEM zoom z */
 async function findOpenSea(lat, lon, R, step, z) {
@@ -139,5 +140,12 @@ export async function tsunamiHeightAt(lat, lon, ms = 8000) {
     }
     if (best && bd < 20000) { row = best; borrowed = `${best.pref}${best.name}`; }
   }
-  return { code, place, name, H: row?.max_2025 ?? null, mean: row?.mean_2025 ?? null, row, borrowed, guessed };
+  // guessed municipality: start from the HIGHEST coastal figure among the municipalities within 15 km, so a wrong
+  // guess (金城ふ頭 → 飛島村 4 m, really 港区 5 m) cannot start the run lower than the true one
+  let H = row?.max_2025 ?? null;
+  if (guessed) for (const r of tab.rows) {
+    const m = byCode.get(r.code) ?? parentOf(r.code);
+    if (m && haversine(lat, lon, m.lat, m.lon) < 15000) H = Math.max(H ?? 0, r.max_2025);
+  }
+  return { code, place, name, H, mean: row?.mean_2025 ?? null, row, borrowed, guessed };
 }

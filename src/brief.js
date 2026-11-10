@@ -53,7 +53,8 @@ export function officialHtml(o, info = null) {
   }
   if (o.state === 'none') {
     // a shallow or distant neighbour is NOT a figure to prepare for (善進本町: 0.2 m, 230 m away, on land below sea level)
-    const weak = a?.n && (a.max < 0.3 || a.edge >= 100);
+    // (a deep value stays a figure to prepare for even when it is 100 m away: 金城ふ頭 has 3.2 m at 130 m)
+    const weak = a?.n && (a.max < 0.3 || (a.max < 1 && a.edge >= 100));
     const near = !a?.n ? '' : weak
       ? `<b>ただし、${edgeJa(a.edge)}最大 ${a.max.toFixed(1)}m の浸水の想定があります。</b>これはケース01だけの値で、備えの上限ではありません。${landNote}`
       : `<b>ただし、${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えは、少なくともこの深さで）。</b>${landNote}`;
@@ -227,8 +228,8 @@ export function createBrief({ map }) {
       // replaces the "deepest nearby" figure afterwards — it never holds the card back
       jobs.push(officialNear(lat, lon).then(async (o) => {
         if (my === token) { c.official = o; part('off'); }
-        await Promise.race([landAround(lat, lon, o), new Promise((r) => setTimeout(r, 12000))]);
-        if (my === token) part('off');
+        const refine = landAround(lat, lon, o).then(() => { if (my === token) part('off'); });
+        await Promise.race([refine, new Promise((r) => setTimeout(r, 12000))]); // a slower answer still updates the card when it comes
       }));
     }
     if (!only || only === 'evac') {

@@ -6,3 +6,7 @@ docs/award/qa/
 docs/award/video/footage/
 docs/award/video/script/音声/
 docs/award/slides/slide-*.png
+
+# Fable 5.2 磨き直しの検証画像：元のPNGは大きいのでローカルだけ（縮小したJPEGと報告JSONは docs/fable52/before_jpg・after_jpg に入れている）
+docs/fable52/before/
+docs/fable52/after/

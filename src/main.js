@@ -10,7 +10,7 @@ import { officialAt, officialState, officialAround, caseNote, cellHasLand } from
 import { createBrief, evacHtml, edgeJa } from './brief.js';
 import { distJa } from './data/evac.js';
 import { createMemo } from './memo.js';
-import { $, esc, depthSay, hazardMapUrl, arrivalJa, arrivalSentence, openDialog, closeDialog, isDialogOpen, anyDialogOpen } from './ui.js';
+import { $, esc, depthSay, hazardMapUrl, walkMin, arrivalJa, arrivalSentence, openDialog, closeDialog, isDialogOpen, anyDialogOpen } from './ui.js';
 import { makeFrame } from './data/geo.js';
 import { createSolver } from './sim/swe.js';
 import { createWorld } from './render/world.js';
@@ -58,7 +58,7 @@ function showInfo(info, lat, lon) {
   $('sel-name').textContent = placeName(info) || '選んだ地点';
   if (info?.H != null && info.guessed) {
     setH(info.H);
-    $('Hsrc').textContent = `この地点の市区町村を特定できませんでした（通信）。近くの「${info.borrowed ?? info.name}」の海岸最大津波高 ${info.H}m を仮の初期値にしています。潮位と防潮壁も、この地域の値を確かめられないため、仮の条件（防潮壁なし）です。分かりしだい、正しい値に差し替えます。`;
+    $('Hsrc').textContent = `この地点の市区町村を特定できませんでした（通信）。近くの市区町村（15km以内）のうち、いちばん高い海岸最大津波高 ${info.H}m を仮の初期値にしています。潮位と防潮壁も、この地域の値を確かめられないため、仮の条件（防潮壁なし）です。分かりしだい、正しい値に差し替えます。`;
   } else if (info?.H != null && info.borrowed) {
     setH(info.H);
     $('Hsrc').textContent = `この地点の市区町村は内閣府（2025）の津波高一覧にないため、近くの「${info.borrowed}」の海岸最大津波高 ${info.H}m を初期値にしています（代用値）。スライダーで変えられます。`;
@@ -87,8 +87,11 @@ async function onPick(lat, lon) {
   $('go').disabled = true;
   $('Hsrc').textContent = '';
   requestAnimationFrame(() => $('sel').scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  // the per-case heights reach the official card as soon as they are known (not after the 3-D planning)
+  const infoP = tsunamiHeightAt(lat, lon).catch(() => null);
+  infoP.then((i) => { if (token === sel.token) brief.setInfo(i ?? { failed: true }); });
   const [info, plan] = await Promise.all([
-    tsunamiHeightAt(lat, lon).catch(() => null),
+    infoP,
     planDomain(lat, lon).catch((e) => ({ ok: false, reason: 'error', error: e })),
   ]);
   if (token !== sel.token) return;
@@ -794,7 +797,8 @@ async function createApp(region, o) {
     o.briefP?.then((bf) => {
       const s = bf?.evac?.status === 'ok' ? bf.evac.sites[0] : null;
       if (!s || !isDialogOpen($('result'))) return;
-      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　直線で${distJa(s.d)}・${s.bearing}の方向<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
+      const w = walkMin(s.d);
+      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　直線で${distJa(s.d)}・${s.bearing}の方向。歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）${s.d > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
       $('r-near').hidden = false;
     }).catch(() => {});
     if (!isDialogOpen($('result'))) {
