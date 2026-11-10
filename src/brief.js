@@ -8,6 +8,8 @@ import { officialNear, officialInBox, officialAround, caseNote, cellHasLand } fr
 import { loadEvacSites, distJa, EVAC_SOURCE, EVAC_SOURCE_URL } from './data/evac.js';
 import { loadDemMosaic, URLS } from './data/tiles.js';
 import { $, esc, depthSay, hazardMapUrl, walkMin, arrivalSentence } from './ui.js';
+import { planRoutes, highGround, ROUTE_RANGE_M } from './route.js';
+import { ROAD_SOURCE, ROAD_SOURCE_URL } from './data/roads.js';
 
 const NEAR = 300;      // これより遠い場所は見出しを分ける（このサイトの目安の区切り）
 const RADIUS = 1000;   // 探す範囲
@@ -117,11 +119,71 @@ async function landAround(lat, lon, o) {
   } catch { /* keep the unfiltered figure */ }
 }
 
-export function createBrief({ map }) {
+const walkJa = (d) => { const w = walkMin(d); return `歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）／歩くのが難しい人・乳幼児連れは約${w.slow}分`; };
+const over500 = (d) => (d > 500 ? '<b class="lowmark">　500mを超えます</b>' : '');
+
+/**
+ * 逃げる道のり（目安）の一覧。
+ * @param rt   { status, sites:[{road,path,elev}], highs:[{level,label,res}], here } | null（確認中）
+ * @param ev   逃げる場所（rt.sites と同じ並び）
+ * @param H    波の条件（海の高さ m）
+ * @param sel  選ばれている行き先（'s0'…/'h0'/'h1'）
+ */
+export function routeHtml(rt, ev, H, sel = null, canChange = false) {
+  if (!rt) return '<p class="brief-wait">道のりを確認中…</p>';
+  if (rt.status === 'failed') return '<p class="brief-fail">道のりを取得できませんでした（通信の状態を確かめてください）。直線距離の一覧は、上に出ています。 <button type="button" class="ghost small" data-retry="route">もう一度</button></p>';
+  if (rt.status !== 'ok') return '<p class="brief-none">近くに道のデータがありません（地図データにない道かもしれません）。上の、直線距離の一覧を使ってください。</p>';
+  const pressed = (id) => `aria-pressed="${sel === id}"`;
+  let h = `<p class="route-wave">波の条件：<b>海の高さ ${H.toFixed(1)}m</b><small>（海岸での津波の高さ。初期値は内閣府の最大津波高${canChange ? '。下の「3Dで再現する」の海の高さを変えると、高い所の行き先も変わります' : ''}）</small></p>
+    <p class="route-note">道のりは、地図データから求めた目安です。<b>通れるとは限りません</b>（建物の倒壊・液状化・夜や雨など）。津波が来る前に逃げる想定で、浸水する道も避けていません。<b>実際に歩いて確かめてください。</b></p>`;
+  // designated sites: the three nearest by road
+  const sites = ev?.status === 'ok' ? ev.sites : [];
+  const idx = sites.map((_, i) => i).filter((i) => rt.sites[i]?.road != null).sort((a, b) => rt.sites[a].road - rt.sites[b].road);
+  const lost = sites.map((_, i) => i).filter((i) => rt.sites[i]?.road == null);
+  h += '<ul class="route-list">';
+  for (const i of idx.slice(0, 3)) {
+    const s = sites[i], r = rt.sites[i];
+    h += `<li><button type="button" class="route-item site" data-route="s${i}" ${pressed('s' + i)}>
+      <span class="route-tag site">指定</span><span class="evac-body"><b>${LETTERS[i] ?? ''}　${esc(s.name)}</b>
+      <span class="evac-meta">道のり ${distJa(r.road)}（直線では${distJa(s.d)}）${over500(r.road)}</span>
+      <span class="evac-meta">${walkJa(r.road)}</span>
+      ${r.elev == null ? '<span class="evac-addr">地面の標高は取得できませんでした</span>'
+        : r.elev < H ? `<span class="evac-low">地面の標高 約${r.elev.toFixed(1)}m：海の高さ（${H.toFixed(1)}m）より低い場所です。建物なら、できるだけ上の階へ</span>`
+          : `<span class="evac-addr">地面の標高 約${r.elev.toFixed(1)}m（海の高さ ${H.toFixed(1)}m 以上）</span>`}</span></button></li>`;
+  }
+  // high ground: the wave height, and twice the wave height
+  let anyHigh = false;
+  rt.highs.forEach((hg, n) => {
+    const r = hg.res;
+    if (r.found && r.dist < 60) {
+      anyHigh = true;
+      h += `<li class="route-miss"><span class="route-tag high">高い所</span>${hg.label}：この地点のまわりは、標高 約${r.elev.toFixed(1)}m で、すでにこの高さ以上です。</li>`;
+    } else if (r.found) {
+      anyHigh = true;
+      h += `<li><button type="button" class="route-item high" data-route="h${n}" ${pressed('h' + n)}>
+        <span class="route-tag high">高い所</span><span class="evac-body"><b>${hg.label}</b>
+        <span class="evac-meta">道のり ${distJa(r.dist)}・標高 約${r.elev.toFixed(1)}m${over500(r.dist)}</span>
+        <span class="evac-meta">${walkJa(r.dist)}</span></span></button></li>`;
+    } else {
+      h += `<li class="route-miss"><span class="route-tag high">高い所</span>${hg.label}：${r.reason === 'nodem' ? '標高を取得できませんでした（通信）。' : `この範囲（地点から約${(ROUTE_RANGE_M / 1000).toFixed(1)}km以内）の道路には、見つかりませんでした。`}</li>`;
+    }
+  });
+  h += '</ul>';
+  if (!idx.length && !lost.length && ev?.status === 'ok') h += '<p class="evac-note">この範囲には、指定された逃げる場所への道のりはありません（上の一覧のとおり、1km以内に見つかっていません）。</p>';
+  if (lost.length) h += `<p class="evac-note">道がつながらなかった場所：${lost.map((i) => `${LETTERS[i] ?? ''}（${esc(sites[i].name)}）`).join('、')}。地図にない道があるかもしれません。直線距離は上の一覧に出ています。</p>`;
+  if (!anyHigh && rt.highs.every((x) => x.res.reason !== 'nodem')) h += '<p class="evac-note"><b>この範囲は平らな土地です。</b>高い所が遠いときは、指定された逃げる場所の、できるだけ上の階へ。</p>';
+  h += `<p class="route-note"><b>標高が海の高さより高くても、津波が来ないという意味ではありません。</b>気象庁によると、津波が陸をかけ上がる高さは、海岸での津波の高さの2〜4倍に達することが多いとされています。できるだけ高い所へ。「高い所」は、標高（まわり50mを含む）と海の高さを比べて選んだもので、市町村が決めた避難の目標地点ではありません。指定された逃げる場所の、何階まで上がれるか・入口・開いている時間は、市町村の情報で確かめてください。並びは道のりの近い順で、おすすめの順ではありません。</p>
+    <p class="src">道のり：<a href="${ROAD_SOURCE_URL}" target="_blank" rel="noopener">${ROAD_SOURCE}</a>と、地理院タイル（標高タイル）を加工して作成。地図にない細い道・階段・歩道橋は入っていません。高速道路は通りません。</p>`;
+  return h;
+}
+
+export function createBrief({ map, getH = () => 5 }) {
   const el = $('brief');
   let token = 0;
   let cur = null; // { lat, lon, official, evac, info }
   let markers = [];
+  let highMarkers = [];
+  let routeSel = null;
   const ready = map ? new Promise((r) => map.once('load', r)) : new Promise(() => {}); // no map (no WebGL2): text only
 
   // ── 地図：公式の浸水セル（浸水セルだけを塗る。塗られない所を「安全」の色で塗らない） ──
@@ -152,10 +214,63 @@ export function createBrief({ map }) {
       } catch { if (my === seq && note) note.dataset.state = 'failed'; }
     };
     map.on('moveend', refresh);
+    // the ways to the places to flee to: one line per destination (never a single "right" route)
+    map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'routes-casing', type: 'line', source: 'routes', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['case', ['==', ['get', 'sel'], 1], 9, 6], 'line-opacity': 0.95 } });
+    map.addLayer({ id: 'routes-line', type: 'line', source: 'routes', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['match', ['get', 'kind'], 'high', '#c2410c', '#15803d'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 6, 3.5], 'line-opacity': ['case', ['==', ['get', 'sel'], 1], 1, 0.8] } });
+    drawRoutes();
     refresh();
   });
 
   function clearMarkers() { for (const m of markers) m.remove(); markers = []; }
+
+  // ── 逃げる道のり ──
+  const routeFeatures = () => {
+    const rt = cur?.route, out = [];
+    if (rt?.status !== 'ok') return out;
+    const sites = cur.evac?.status === 'ok' ? cur.evac.sites : [];
+    const idx = sites.map((_, i) => i).filter((i) => rt.sites[i]?.path).sort((a, b) => rt.sites[a].road - rt.sites[b].road).slice(0, 3);
+    for (const i of idx) out.push({ id: 's' + i, kind: 'site', path: rt.sites[i].path });
+    rt.highs.forEach((hg, n) => { if (hg.res.found && hg.res.dist >= 60) out.push({ id: 'h' + n, kind: 'high', path: hg.res.path, lat: hg.res.lat, lon: hg.res.lon }); });
+    return out;
+  };
+  function drawRoutes() {
+    for (const m of highMarkers) m.remove();
+    highMarkers = [];
+    if (!map) return;
+    const feats = routeFeatures();
+    const src = map.getSource('routes');
+    // the selected line is drawn last (on top)
+    feats.sort((a, b) => (a.id === routeSel) - (b.id === routeSel));
+    if (src) src.setData({ type: 'FeatureCollection', features: feats.map((f) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: f.path }, properties: { id: f.id, kind: f.kind, sel: f.id === routeSel ? 1 : 0 } })) });
+    for (const f of feats) if (f.kind === 'high') {
+      const m = document.createElement('div');
+      m.className = 'high-marker';
+      m.textContent = '高';
+      m.title = '高い所（標高と海の高さを比べて選んだ地点。市町村が決めた避難の目標地点ではありません）';
+      highMarkers.push(new maplibregl.Marker({ element: m, anchor: 'center' }).setLngLat([f.lon, f.lat]).addTo(map));
+    }
+  }
+  /** the high-ground destinations depend on the wave condition (海の高さ): recomputed whenever it changes */
+  function computeHighs() {
+    const rt = cur?.route;
+    if (rt?.status !== 'ok') return;
+    const H = getH();
+    rt.H = H;
+    rt.highs = [
+      { level: H, label: `海の高さ（${H.toFixed(1)}m）より高い所`, res: highGround(rt, H) },
+      { level: 2 * H, label: `海の高さの2倍（${(2 * H).toFixed(1)}m）より高い所`, res: highGround(rt, 2 * H) },
+    ];
+    if (routeSel && !routeFeatures().some((f) => f.id === routeSel)) routeSel = null;
+  }
+  async function loadRoute(lat, lon, c, my) {
+    c.route = null; part('route');
+    let rt;
+    try { rt = await planRoutes(lat, lon, c.evac?.status === 'ok' ? c.evac.sites : []); } catch (e) { console.warn('route', e); rt = { status: 'failed' }; }
+    if (my !== token) return;
+    c.route = rt;
+    computeHighs(); drawRoutes(); part('route');
+  }
   function drawMarkers(ev) {
     clearMarkers();
     if (ev?.status !== 'ok' || !map) return;
@@ -177,14 +292,23 @@ export function createBrief({ map }) {
       <div class="brief-off" id="brief-off"></div>
       <h3 class="brief-h3">津波から逃げる場所<small>指定緊急避難場所（津波）・1km以内の近い順</small></h3>
       <div class="brief-evac" id="brief-evac"></div>
+      <h3 class="brief-h3">逃げる道のり（目安）<small>指定された逃げる場所と、高い所まで。歩く道の網で、いちばん短い道</small></h3>
+      <div class="brief-route" id="brief-route"></div>
       <p class="brief-links" id="brief-links"></p>
       <p class="src">${EVAC_CREDIT}</p>`;
-    part('off'); part('evac'); part('links');
+    part('off'); part('evac'); part('route'); part('links');
   }
   function part(which) {
     if (!cur || !$('brief-off')) return;
     if (which === 'off') $('brief-off').innerHTML = officialHtml(cur.official, cur.info);
     if (which === 'evac') $('brief-evac').innerHTML = evacHtml(cur.evac);
+    if (which === 'route') {
+      // rebuilt when the wave height changes or a line is chosen: keep the reader's place
+      const f = document.activeElement, key = $('brief-route').contains(f) ? f.getAttribute('data-route') : null;
+      $('brief-route').innerHTML = routeHtml(cur.route, cur.evac, cur.route?.H ?? getH(), routeSel, !$('sim-setup')?.hidden);
+      if (key) $('brief-route').querySelector(`[data-route="${key}"]`)?.focus({ preventScroll: true });
+      return;
+    }
     if (which === 'links') {
       // rebuilt when the municipality arrives: keep the reader's focus on the same control
       const f = document.activeElement, key = $('brief-links').contains(f) ? (f.id || f.getAttribute('href')) : null;
@@ -209,7 +333,19 @@ export function createBrief({ map }) {
 
   el.addEventListener('click', (e) => {
     const r = e.target.closest('[data-retry]');
-    if (r && cur) { load(cur.lat, cur.lon, r.dataset.retry); return; }
+    if (r && cur) { if (r.dataset.retry === 'route') loadRoute(cur.lat, cur.lon, cur, token); else load(cur.lat, cur.lon, r.dataset.retry); return; }
+    const rb = e.target.closest('[data-route]');
+    if (rb && cur?.route?.status === 'ok') {
+      routeSel = routeSel === rb.dataset.route ? null : rb.dataset.route;
+      drawRoutes(); part('route');
+      const f = routeFeatures().find((x) => x.id === routeSel);
+      if (f && map) {
+        const xs = f.path.map((q) => q[0]), ys = f.path.map((q) => q[1]);
+        const pad = innerWidth > 760 ? { left: Math.min(460, innerWidth * 0.4) + 40, top: 80, right: 60, bottom: 60 } : { left: 40, right: 40, top: 110, bottom: innerHeight * 0.62 + 30 };
+        map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: pad, maxZoom: 17, duration: 700 });
+      }
+      return;
+    }
     const b = e.target.closest('[data-evac]');
     if (b && cur?.evac?.sites) {
       const s = cur.evac.sites[Number(b.dataset.evac)];
@@ -234,7 +370,12 @@ export function createBrief({ map }) {
     }
     if (!only || only === 'evac') {
       c.evac = null; part('evac');
-      jobs.push(loadEvacSites(lat, lon, RADIUS, 5).then((ev) => { if (my === token) { c.evac = ev; drawMarkers(ev); part('evac'); } }));
+      jobs.push(loadEvacSites(lat, lon, RADIUS, 5).then((ev) => {
+        if (my !== token) return;
+        c.evac = ev; drawMarkers(ev); part('evac');
+        // the ways there are worked out once the places are known — and never hold the card (or the 3-D run) back
+        c.routeP = loadRoute(lat, lon, c, my);
+      }));
     }
     await Promise.all(jobs);
     return c;
@@ -245,13 +386,17 @@ export function createBrief({ map }) {
     update(lat, lon) {
       token++;
       clearMarkers();
-      cur = { lat, lon, official: null, evac: null, info: null };
+      routeSel = null;
+      cur = { lat, lon, official: null, evac: null, info: null, route: null };
+      drawRoutes();
       $('brief-live').textContent = '';
       skeleton();
       return load(lat, lon);
     },
     /** municipality + Cabinet-Office coastal heights per case (from tsunamiHeightAt) */
     setInfo(info) { if (cur) { cur.info = info; part('off'); part('links'); } },
+    /** the wave condition changed: the high-ground destinations move with it */
+    setWave() { if (cur?.route?.status === 'ok') { computeHighs(); drawRoutes(); part('route'); } },
     get current() { return cur; },
   };
 }

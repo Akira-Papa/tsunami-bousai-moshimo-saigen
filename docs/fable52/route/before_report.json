@@ -1,0 +1,65 @@
+{
+  "label": "before",
+  "base": "http://127.0.0.1:5351",
+  "at": "2026-11-10T09:29:28.814Z",
+  "runs": [
+    {
+      "name": "nagoya_pc",
+      "place": "名古屋港 ガーデンふ頭",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "checks": {},
+      "route": null,
+      "pass": true
+    },
+    {
+      "name": "nagoya_sp",
+      "place": "名古屋港 ガーデンふ頭",
+      "vp": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "gpu": true,
+      "errors": [],
+      "checks": {},
+      "route": null,
+      "pass": true
+    },
+    {
+      "name": "kochi_pc",
+      "place": "高知市 種崎",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "checks": {},
+      "route": null,
+      "pass": true
+    },
+    {
+      "name": "owase_pc",
+      "place": "尾鷲市街",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "checks": {},
+      "route": null,
+      "pass": true
+    }
+  ]
+}

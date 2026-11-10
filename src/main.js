@@ -66,7 +66,7 @@ function setGpuUi(why = null) {
 // ─────────────────────────────────────────────────────────────
 const sel = { lat: null, lon: null, plan: null, info: null, token: 0, briefP: null, defaults: null };
 const picker = createPicker({ onPick });
-const brief = createBrief({ map: picker.map });
+const brief = createBrief({ map: picker.map, getH: () => Number($('H').value) || 5 });
 const memo = createMemo({ getContext: () => ({ name: placeName(sel.info), lat: sel.lat, lon: sel.lon, info: sel.info, official: brief.current?.official, evac: brief.current?.evac }) });
 document.addEventListener('memo', () => memo.open());
 setGpuUi();
@@ -257,7 +257,10 @@ $('hud-more').addEventListener('click', () => {
 if (compact) { document.querySelector('.hud').classList.add('closed'); } else { $('hud-more').setAttribute('aria-expanded', 'true'); $('hud-more').textContent = 'たたむ'; }
 
 
-function setH(v) { $('H').value = v; $('Hout').textContent = Number(v).toFixed(1); }
+// the wave condition also decides which high ground the routes lead to (debounced: the slider fires continuously)
+let waveT = 0;
+const waveChanged = () => { clearTimeout(waveT); waveT = setTimeout(() => brief.setWave(), 350); };
+function setH(v) { $('H').value = v; $('Hout').textContent = Number(v).toFixed(1); waveChanged(); }
 // a shared link carries the point and the CONDITIONS only (never a result): apply them once, to the linked point
 let urlCondPending = qs.has('lat') && qs.has('lon');
 function applyUrlConditions() {
@@ -274,7 +277,7 @@ function applyUrlConditions() {
   syncLevee();
   if (['h', 'tide', 'levee', 'crest', 'breach'].some((k) => qs.has(k))) sel.touched = true; // a late municipality answer must not undo the link's conditions
 }
-$('H').addEventListener('input', (e) => { $('Hout').textContent = Number(e.target.value).toFixed(1); });
+$('H').addEventListener('input', (e) => { $('Hout').textContent = Number(e.target.value).toFixed(1); waveChanged(); });
 
 // ─────────────────────────────────────────────────────────────
 //  2. renderer (created once, reused per town)
@@ -822,8 +825,11 @@ async function createApp(region, o) {
     o.briefP?.then((bf) => {
       const s = bf?.evac?.status === 'ok' ? bf.evac.sites[0] : null;
       if (!s || !isDialogOpen($('result'))) return;
-      const w = walkMin(s.d);
-      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　直線で${distJa(s.d)}・${s.bearing}の方向。歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）${s.d > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
+      // the way there along the roads, when it could be worked out (otherwise the straight-line figure)
+      const road = bf.route?.status === 'ok' ? bf.route.sites?.[0]?.road : null;
+      const dWalk = road ?? s.d;
+      const w = walkMin(dWalk);
+      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　${road != null ? `道のり${distJa(road)}（目安・直線では${distJa(s.d)}）` : `直線で${distJa(s.d)}`}・${s.bearing}の方向。歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）${dWalk > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
       $('r-near').hidden = false;
     }).catch(() => {});
     if (!isDialogOpen($('result'))) {
