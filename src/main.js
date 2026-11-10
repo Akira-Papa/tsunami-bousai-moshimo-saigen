@@ -1279,7 +1279,11 @@ async function createApp(region, o) {
   prScale = 1; // every place starts sharp; a slow previous place must not carry its low resolution over
   function frame(fixedDt) {
     const now = performance.now();
-    const rdt = fixedDt ?? Math.min((now - st.lastT) / 1000, 1 / 20);
+    // real = the time that really passed since the last frame (the WATER is owed this much: a page that is
+    // hidden or throttled draws about once a second, and with the old cap of 1/20 s per frame its clock ran at
+    // ×1 whatever speed was chosen). rdt = the same, capped, for things that only animate (camera, spray, marks).
+    const real = fixedDt ?? Math.min((now - st.lastT) / 1000, 1.5);
+    const rdt = fixedDt ?? Math.min(real, 1 / 20);
     st.lastT = now;
     rig.update(rdt);
     // the sky travels with the camera (its colour depends on the viewing direction only): pulled all the way
@@ -1316,7 +1320,7 @@ async function createApp(region, o) {
       // simulated seconds owed to the water, carried over between frames (×1 really is ×1: before, at least one
       // sub-step ran per frame, which made ×1 run at about ×1.3–×2). How the sub-steps fall into frames no longer
       // changes the result — see the fixed schedule in sim/swe.js and sim/advance.js.
-      adv = advanceWater(solver, outerSolver, st, curSpeed() * rdt, { spray: calm() ? 0 : 1, wake: L * 0.75 + 600 });
+      adv = advanceWater(solver, outerSolver, st, curSpeed() * real, { spray: calm() ? 0 : 1, wake: L * 0.75 + 600 });
       if (lead.time > total && !st.shownResult) { st.shownResult = true; ui.play(); openResult(); }
     }
     if (outerSolver) { outerSolver.pack(0); world.outerLayer.update(); }
@@ -1325,7 +1329,7 @@ async function createApp(region, o) {
     // eye cannot follow a mark). Their LENGTH is the flow speed × 6 simulated seconds at every playback speed:
     // it used to shrink to a third at ×5 — in the very moment the slow-down is meant to show (review AB2)
     if (st.playing && rdt > 0) {
-      st.eff += (adv / rdt - st.eff) * 0.12;
+      st.eff += (adv / real - st.eff) * (real > 0.2 ? 1 : 0.12);
       const sp = Math.min(st.eff, 20);
       world.uMark.value.x = 6;
       world.uMark.value.y = Math.max(1, sp);
@@ -1346,7 +1350,7 @@ async function createApp(region, o) {
     if (probeTick % 6 === 0) updateHud();
     // adaptive sub-step budget: keep the frame ≥ ~30 fps
     if (fixedDt === undefined) {
-      fpsAcc += rdt; fpsN++;
+      fpsAcc += real; fpsN++;
       if (fpsAcc > 1) {
         const fps = fpsN / fpsAcc;
         // skip the first seconds (shader warm-up) and come back up on a 60 Hz screen: 55 fps for 3 s in a row is enough
@@ -1366,16 +1370,17 @@ async function createApp(region, o) {
           const sdt = outerSolver && !st.innerActive ? outerSolver.dt * 6 : solver.dt; // simulated seconds per unit of maxSteps
           const need = Math.ceil(curSpeed() / fps / sdt), floor = Math.max(2, Math.ceil(Math.min(curSpeed(), 5) / fps / sdt));
           const busy = st.gpuMs != null && st.gpuMs > (1000 / fps) * 0.7;
-          const CAP = 320;
+          // (at most what one control interval holds — a frame cannot pass a control point anyway; 「最速」 stays at 320)
+          const CAP = curSpeed() > 900 ? 320 : 1200;
           if (busy && fps < 28) st.maxSteps = Math.max(floor, Math.floor(st.maxSteps * 0.8));
           else if (!busy && st.maxSteps < Math.min(need, CAP)) st.maxSteps = Math.min(CAP, need, Math.max(st.maxSteps + 4, Math.ceil(st.maxSteps * 1.5)));
           else if (fps > 50 && st.maxSteps < 120) st.maxSteps = Math.ceil(st.maxSteps * 1.15);
           if (st.maxSteps < floor) st.maxSteps = floor;
           // the device cannot keep the chosen speed: say so (otherwise it only looks as if no water were coming)
           const want = curSpeed();
-          st.slowFor = want < 900 && eff < want * 0.55 && !solver.waiting ? (st.slowFor || 0) + 1 : 0;
+          st.slowFor = want < 900 && eff < want * 0.55 ? (st.slowFor || 0) + 1 : 0;
           const slow = $('slow-note');
-          if (st.slowFor >= 4) { slow.textContent = `この端末では、選んだ速さ（×${want}）より遅く進んでいます（いま 約×${eff < 10 ? eff.toFixed(1) : eff.toFixed(0)}）。水が動くまで、時間がかかります。`; slow.hidden = false; }
+          if (st.slowFor >= 3) { slow.textContent = `この端末では、選んだ速さ（×${want}）より遅く進んでいます（いま 約×${eff < 10 ? eff.toFixed(1) : eff.toFixed(0)}）。水が動くまで、時間がかかります。`; slow.hidden = false; }
           else if (st.slowFor === 0) slow.hidden = true;
           // measure the GPU once a second: from here until everything submitted so far is done
           const g0 = performance.now();
