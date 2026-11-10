@@ -670,3 +670,20 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 /* 端末が、選んだ速さについていけない時の知らせ */
 #sim .slow-note { margin: 0; padding: 6px 10px; border-radius: 10px; font-size: 12px; line-height: 1.5; background: rgba(255, 143, 134, .12); border: 1px solid rgba(255, 143, 134, .5); color: #ffd9d5; }
 #sim .slow-note[hidden] { display: none; }
+
+/* 逃げる道のり（3D・D5）：2Dの地図と同じ色（緑＝指定の逃げる場所、橙＝高い所、白いふち）。点線＝いま水の下 */
+.dock > #route-legend { grid-column: 1 / -1; }
+.route-legend { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.route-legend[hidden] { display: none; }
+.route-legend span { display: inline-flex; gap: 5px; align-items: center; }
+.route-legend b { font-weight: 700; color: #ffd98a; }
+.route-legend small { color: var(--ink-3); font-size: 11px; }
+.route-legend small[hidden] { display: none; }
+.route-legend .rl { display: inline-block; width: 24px; height: 6px; border-radius: 3px; box-shadow: 0 0 0 1.5px #fff; }
+.route-legend .rl.site { background: #15803d; }
+.route-legend .rl.high { background: #c2410c; }
+.route-legend .rl.wet { box-shadow: none; height: 0; border-top: 4px dashed #c9ced3; border-radius: 0; filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000); }
+.lbl.route-end { box-shadow: 0 2px 8px rgba(0, 0, 0, .35); border: 1.5px solid #fff; }
+.lbl.route-end.site { background: #15803d; color: #fff; min-width: 22px; text-align: center; }
+.lbl.route-end.high { background: #c2410c; color: #fff; }
+@media (max-width: 760px) { .route-legend { font-size: 11px; gap: 2px 8px; } .route-legend b { flex-basis: 100%; } }

@@ -1,0 +1,133 @@
+{
+  "at": "2026-11-10T21:01:23.452Z",
+  "runs": [
+    {
+      "dev": "PC",
+      "pick": true,
+      "errors": [],
+      "checks": {
+        "autoOn": true,
+        "dryBeforeWave": true,
+        "endLabels": true,
+        "pinVisible": true,
+        "waterArrived": true,
+        "wetAfterArrival": true,
+        "noErrors": true
+      },
+      "first": {
+        "on": true,
+        "disabled": false,
+        "legend": true,
+        "ends": [
+          "A"
+        ]
+      },
+      "wetBefore": {
+        "wet": 0,
+        "all": 796
+      },
+      "endsInDom": 3,
+      "free": 65.3,
+      "pinFree": true,
+      "arrivedAt": 817,
+      "wetAfter": {
+        "wet": 606,
+        "all": 796
+      },
+      "pass": true
+    },
+    {
+      "dev": "PC",
+      "pick": false,
+      "errors": [],
+      "checks": {
+        "offByDefault": true,
+        "canTurnOn": true,
+        "endLabels": true,
+        "pinVisible": true,
+        "noErrors": true
+      },
+      "first": {
+        "on": false,
+        "disabled": false,
+        "legend": false,
+        "ends": []
+      },
+      "after": {
+        "on": true,
+        "disabled": false,
+        "legend": true,
+        "ends": [
+          "A"
+        ]
+      },
+      "endsInDom": 3,
+      "free": 65.3,
+      "pinFree": true,
+      "pass": true
+    },
+    {
+      "dev": "スマホ",
+      "pick": true,
+      "errors": [],
+      "checks": {
+        "autoOn": true,
+        "dryBeforeWave": true,
+        "endLabels": true,
+        "pinVisible": true,
+        "free55": true,
+        "waterArrived": true,
+        "wetAfterArrival": true,
+        "noErrors": true
+      },
+      "first": {
+        "on": true,
+        "disabled": false,
+        "legend": true,
+        "ends": []
+      },
+      "wetBefore": {
+        "wet": 0,
+        "all": 542
+      },
+      "endsInDom": 3,
+      "free": 63.8,
+      "pinFree": true,
+      "arrivedAt": 938,
+      "wetAfter": {
+        "wet": 471,
+        "all": 542
+      },
+      "pass": true
+    },
+    {
+      "dev": "スマホ",
+      "pick": false,
+      "errors": [],
+      "checks": {
+        "offByDefault": true,
+        "canTurnOn": true,
+        "endLabels": true,
+        "pinVisible": true,
+        "free55": true,
+        "noErrors": true
+      },
+      "first": {
+        "on": false,
+        "disabled": false,
+        "legend": false,
+        "ends": []
+      },
+      "after": {
+        "on": true,
+        "disabled": false,
+        "legend": true,
+        "ends": []
+      },
+      "endsInDom": 3,
+      "free": 63.8,
+      "pinFree": true,
+      "pass": true
+    }
+  ]
+}

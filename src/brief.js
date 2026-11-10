@@ -296,8 +296,8 @@ export function createBrief({ map, getH = () => 5 }) {
     if (rt?.status !== 'ok') return out;
     const sites = cur.evac?.status === 'ok' ? cur.evac.sites : [];
     const idx = sites.map((_, i) => i).filter((i) => rt.sites[i]?.path).sort((a, b) => rt.sites[a].road - rt.sites[b].road).slice(0, 3);
-    for (const i of idx) out.push({ id: 's' + i, kind: 'site', path: rt.sites[i].path });
-    rt.highs.forEach((hg, n) => { if (hg.res.found && hg.res.dist >= 60) out.push({ id: 'h' + n, kind: 'high', path: hg.res.path, lat: hg.res.lat, lon: hg.res.lon }); });
+    for (const i of idx) out.push({ id: 's' + i, kind: 'site', path: rt.sites[i].path, road: rt.sites[i].road });
+    rt.highs.forEach((hg, n) => { if (hg.res.found && hg.res.dist >= 60) out.push({ id: 'h' + n, kind: 'high', path: hg.res.path, lat: hg.res.lat, lon: hg.res.lon, elev: hg.res.elev, road: hg.res.dist, level: hg.level }); });
     return out;
   };
   function drawRoutes() {
@@ -483,5 +483,7 @@ export function createBrief({ map, getH = () => 5 }) {
     /** the wave condition changed: the high-ground destinations move with it */
     setWave() { if (cur?.route?.status === 'ok') computeHighs().then((ok) => { if (ok) { drawRoutes(); part('route'); } }); },
     get current() { return cur; },
+    /** the ways shown on the map (for the 3-D view): the lines and the one the card has picked, if any */
+    get routes() { return { feats: routeFeatures(), sel: routeSel, H: cur?.route?.H ?? null }; },
   };
 }

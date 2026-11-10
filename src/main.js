@@ -17,6 +17,7 @@ import { createCameraRig } from './camera.js';
 import { createMapLabels, createBeacon } from './render/maplayer.js';
 import { createWorld } from './render/world.js';
 import { createPin, createSeaMarker } from './render/markers.js';
+import { createRoutes3D } from './render/routes3d.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 const qs = new URLSearchParams(location.search);
@@ -853,6 +854,63 @@ async function createApp(region, o) {
       cleanups.push(() => { clearTimeout(h); hint.hidden = true; dom.removeEventListener('pointerdown', done); dom.removeEventListener('wheel', done); dom.removeEventListener('keydown', done); });
     } else hint.hidden = true;
   }
+  // ── 逃げる道のり（D5）: the same ways the card worked out, as a band on the 3-D map ──
+  // green = to a designated place, orange = to high ground, grey dashes = under water right now. Off unless the
+  // card had a way picked when the run started (then it is what the user was looking at).
+  let routes3d = null, routeAlive = true;
+  const routeEnds = [];
+  const ROUTE_LETTERS = ['A', 'B', 'C', 'D', 'E'];
+  $('tg-route').checked = false;
+  $('tg-route').disabled = true;
+  $('tg-route').closest('label').title = '道のりを求めている間、または求められなかった時は使えません';
+  const noRoute = () => {
+    if (!routeAlive) return;
+    const late = routes3d?.late;
+    if (routes3d && !late) return;
+    $('tg-route').checked = false; $('tg-route').disabled = true;
+    $('tg-route').closest('label').title = late ? '道のりが届いたのが、再現が進んでからだったため、3Dには出していません（「地点を選び直す」から、もう一度始めると出ます）' : '道のりを求められなかったため、使えません（カードの「逃げる道のり」を確かめてください）';
+  };
+  const buildRoutes = () => {
+    if (!routeAlive || routes3d || o.demo || !region.frame) return false;
+    const rs = brief.routes;
+    // the card's high ground was chosen for one wave height: with another height in this run, only the ways to
+    // the designated places (which do not depend on it) are drawn
+    const feats = rs.H != null && Math.abs(rs.H - H) > 0.05 ? rs.feats.filter((f) => f.kind === 'site') : rs.feats;
+    if (!feats.length) return false;
+    const r3 = createRoutes3D(feats, feats.some((f) => f.id === rs.sel) ? rs.sel : null, { region, solver });
+    if (!r3) return false;
+    routes3d = r3;
+    scene.add(r3.mesh);
+    // the water already there at the start (land below the starting tide) is not "the tsunami on this road".
+    // Read it once; too late (the ways came after the wave had started) → the band is not drawn at all
+    r3.ready = false;
+    // (after a couple of drawn frames: the drawn-water buffer is written by the frame loop)
+    const afterFrames = () => new Promise((res) => { const t0 = performance.now(); const w = () => (st.drawn >= 2 || performance.now() - t0 > 15000 ? res() : setTimeout(w, 50)); w(); });
+    afterFrames().then(() => r3.calibrate(renderer, lead.time)).then((ok) => { if (!routeAlive || routes3d !== r3) return; if (ok) { r3.ready = true; applyToggles(); } else { r3.late = true; noRoute(); applyToggles(); } }).catch(() => { r3.late = true; });
+    for (const e of routes3d.ends) {
+      const el = document.createElement('div');
+      el.className = `lbl route-end ${e.kind}`;
+      el.textContent = e.kind === 'high' ? `高い所（${e.feat.level > H * 1.5 ? '海の高さの2倍より上' : '海の高さより上'}・標高 約${Math.round(e.feat.elev)}m）` : ROUTE_LETTERS[Number(e.id.slice(1))] ?? '';
+      const l = new CSS2DObject(el);
+      l.position.set(e.x, e.y + 4, e.z);
+      l.center.set(0.5, 1);
+      l.visible = false;
+      scene.add(l);
+      routeEnds.push(l);
+    }
+    $('route-out').hidden = !routes3d.clipped;
+    $('tg-route').disabled = false;
+    $('tg-route').closest('label').title = '';
+    if (rs.sel && feats.some((f) => f.id === rs.sel)) $('tg-route').checked = true;
+    return true;
+  };
+  if (!buildRoutes() && o.briefP && !o.demo) {
+    // the ways usually arrive a moment after the card: draw them as soon as they are there — but only if the card
+    // still shows the point this run was started for
+    const cardAt = brief.current;
+    o.briefP.then((bf) => bf?.routeP).then(() => { if (brief.current === cardAt && buildRoutes()) applyToggles(); else noRoute(); }).catch(noRoute);
+  } else if (!routes3d) noRoute();
+  cleanups.push(() => { routeAlive = false; for (const l of routeEnds) l.removeFromParent(); $('route-legend').hidden = true; });
   const applyToggles = () => {
     if ($('tg-depth').checked) $('toast').hidden = true;
     const depth = $('tg-depth').checked || calm();
@@ -868,8 +926,12 @@ async function createApp(region, o) {
     $('tg-marks').disabled = calm(); $('tg-spray').disabled = calm(); // 「動きを減らす」switches both off
     world.uShowTall.value = $('tg-tall').checked ? 1 : 0;
     for (const l of tall.labels) l.visible = $('tg-tall').checked;
+    const rOn = !!routes3d?.ready && $('tg-route').checked;
+    if (routes3d) routes3d.mesh.visible = rOn;
+    for (const l of routeEnds) l.visible = rOn;
+    $('route-legend').hidden = !rOn;
   };
-  ['tg-depth', 'tg-off', 'tg-spray', 'tg-marks', 'tg-calm', 'tg-tall', 'tg-map'].forEach((id) => on(id, 'change', applyToggles));
+  ['tg-depth', 'tg-off', 'tg-spray', 'tg-marks', 'tg-calm', 'tg-tall', 'tg-map', 'tg-route'].forEach((id) => on(id, 'change', applyToggles));
   applyToggles();
   on('result-btn', 'click', () => openResult());
   on('r-close', 'click', () => closeDialog($('result')));
@@ -1339,6 +1401,7 @@ async function createApp(region, o) {
     world.uEnv.value.y = now / 1000;
     world.renderCaustics();
     world.pipeline.render();
+    st.drawn = (st.drawn || 0) + 1; // the 3-D ways read the drawn water once a couple of frames are out
     labels.render(scene, camera);
     // washed houses → forget them in the water shading and redraw the sun shadows (throttled, rare)
     if (solver.coast.washed !== (st.washSeen ?? 0) && !st.washBusy && now - (st.washAt ?? 0) > 6000) {
@@ -1415,6 +1478,7 @@ async function createApp(region, o) {
       labels.domElement.replaceChildren();
     },
     // debug / verification hooks
+    get routes3d() { return routes3d; },
     frame, st, setView, openResult, camera, controls, rig, compose, outerSolver, lead, pin: { x: pinX, z: pinZ, k: pinK, ground: pinGround }, dir, tall,
   };
 }

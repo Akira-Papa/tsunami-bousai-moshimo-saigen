@@ -193,6 +193,7 @@
       <div id="disp" class="disp" hidden>
         <div class="toggles">
           <label><input type="checkbox" id="tg-map" checked /> 道・地名</label>
+          <label><input type="checkbox" id="tg-route" /> 逃げる道のり（カードと同じ道）</label>
           <label><input type="checkbox" id="tg-marks" checked /> 流れの印</label>
           <label><input type="checkbox" id="tg-depth" /> 深さで色分け（塗り＝この再現）</label>
           <label><input type="checkbox" id="tg-off" /> 公式想定を重ねる（斜線）</label>
@@ -202,6 +203,7 @@
         <p id="marks-legend" class="marks-legend"><i></i>細い線＝水の流れ。太く明るい方へ流れています。長いほど速い（計算から描いた印。雨・波・漂流物ではありません。線のない所にも、水はあります）</p>
         <p id="front-legend" class="marks-legend front"><i></i>水のふちの明るい線＝いまの水のふち（深さ約5cmの所）。その先にも、うすい水が広がっています。水が引くと、線も戻ります</p>
       </div>
+      <p id="route-legend" class="route-legend" hidden><span><i class="rl site"></i>指定の逃げる場所まで</span><span><i class="rl high"></i>高い所まで</span><span><i class="rl wet"></i>点線＝いま水の下</span><b>逃げるのは、水が来る前です。通れるとは限りません。</b><small id="route-out" hidden>計算した範囲の外の道は、描いていません。</small></p>
       <div id="legend" hidden>
         <div class="legend-k"><span>深さ（m）</span><span><i class="sw fill"></i>塗り＝この再現</span><span><i class="sw hatch"></i>斜線＝公式想定（内閣府2025）</span></div>
         <div class="legend"><span style="--c:#ffffb3">〜0.3</span><span style="--c:#f7f5a9">0.3〜1</span><span style="--c:#ffd8c0">1〜2</span><span style="--c:#ffb7b7">2〜5</span><span style="--c:#ff9191">5〜10</span><span style="--c:#f285c9">10〜20</span><span style="--c:#dc7adc">20〜</span></div>
