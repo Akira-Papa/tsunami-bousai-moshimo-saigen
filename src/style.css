@@ -485,3 +485,25 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .r-near { margin: 0; background: rgba(62,207,142,.1); border: 1px solid rgba(62,207,142,.5); border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.6; }
 .r-near b { font-size: 15px; }
 .r-near small { display: block; font-size: 12px; color: var(--ink-2); }
+
+/* ═════════ 「この地点で、3Dで再現する」をいつも見える場所に（2026-11-10 本人の指示）═════════
+   カード＝スクロールする中身（.pick-scroll）＋いつも見える下の段（.pick-foot）。
+   ボタンは中身の外にあるので、どこまでスクロールしても消えず、中身（揺れたら逃げるの帯・逃げる場所）にも重ならない。
+   sticky や scroll-padding は使わない（スクロールが引き戻される動きを作らない）。 */
+.pick-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.pick-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px; overscroll-behavior: contain; }
+.pick-foot { flex: none; display: grid; gap: 6px; padding: 10px 20px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--panel-solid); box-shadow: 0 -6px 14px rgba(0, 0, 0, .28); }
+.pick-foot[hidden] { display: none; }
+.pick-foot #go { width: 100%; min-height: 48px; }
+.go-why { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+#sel-warn { scroll-margin-top: 84px; }
+@media (max-width: 760px) {
+  .pick-card { padding: 0; }
+  .pick-scroll { padding: 16px; }
+  .pick-foot { padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); }
+}
+/* 地図の出典表示は、カード（とその下の段のボタン）の裏へ回り込ませない：カードの右側の幅の中で折り返す */
+@media (min-width: 761px) {
+  #map .maplibregl-ctrl-attrib { max-width: calc(100vw - min(420px, 100vw - 32px) - 16px - 36px); }
+  #map .maplibregl-ctrl-attrib-inner { white-space: normal; }
+}

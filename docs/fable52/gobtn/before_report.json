@@ -1,0 +1,524 @@
+{
+  "label": "before",
+  "at": "2026-11-10T04:04:05.891Z",
+  "runs": [
+    {
+      "name": "pc1440",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 2497,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1314,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 1183,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "2mid",
+          "want": 1314,
+          "stayed": true
+        },
+        {
+          "scrollTop": 2627,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 278,
+            "w": 378,
+            "h": 48
+          },
+          "inView": true,
+          "onTop": true,
+          "overlaps": [],
+          "tag": "3bottom",
+          "want": 2627,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 2627,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": true,
+        "goDisabled": false,
+        "go": {
+          "x": 37,
+          "y": 1177,
+          "w": 378,
+          "h": 48
+        },
+        "inView": false,
+        "onTop": false,
+        "overlaps": []
+      },
+      "clickWorks": false,
+      "pass": false
+    },
+    {
+      "name": "sp390",
+      "vp": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "gpu": true,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 17,
+            "y": 3007,
+            "w": 356,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1500,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 17,
+            "y": 1507,
+            "w": 356,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "2mid",
+          "want": 1500,
+          "stayed": true
+        },
+        {
+          "scrollTop": 3000,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 17,
+            "y": 435,
+            "w": 356,
+            "h": 48
+          },
+          "inView": true,
+          "onTop": true,
+          "overlaps": [],
+          "tag": "3bottom",
+          "want": 3000,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 3000,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": true,
+        "goDisabled": false,
+        "go": {
+          "x": 17,
+          "y": 1687,
+          "w": 356,
+          "h": 48
+        },
+        "inView": false,
+        "onTop": false,
+        "overlaps": []
+      },
+      "clickWorks": false,
+      "pass": false
+    },
+    {
+      "name": "tab768",
+      "vp": {
+        "width": 768,
+        "height": 1024,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 2497,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1252,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 1245,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "2mid",
+          "want": 1252,
+          "stayed": true
+        },
+        {
+          "scrollTop": 2503,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 402,
+            "w": 378,
+            "h": 48
+          },
+          "inView": true,
+          "onTop": true,
+          "overlaps": [],
+          "tag": "3bottom",
+          "want": 2503,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 2503,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": true,
+        "goDisabled": false,
+        "go": {
+          "x": 37,
+          "y": 1177,
+          "w": 378,
+          "h": 48
+        },
+        "inView": false,
+        "onTop": false,
+        "overlaps": []
+      },
+      "clickWorks": false,
+      "pass": false
+    },
+    {
+      "name": "land1024",
+      "vp": {
+        "width": 1024,
+        "height": 768,
+        "deviceScaleFactor": 1
+      },
+      "gpu": true,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 2497,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1380,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 1117,
+            "w": 378,
+            "h": 48
+          },
+          "inView": false,
+          "onTop": false,
+          "overlaps": [],
+          "tag": "2mid",
+          "want": 1380,
+          "stayed": true
+        },
+        {
+          "scrollTop": 2759,
+          "goShown": true,
+          "goDisabled": false,
+          "go": {
+            "x": 37,
+            "y": 146,
+            "w": 378,
+            "h": 48
+          },
+          "inView": true,
+          "onTop": true,
+          "overlaps": [],
+          "tag": "3bottom",
+          "want": 2759,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 2759,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": true,
+        "goDisabled": false,
+        "go": {
+          "x": 37,
+          "y": 1177,
+          "w": 378,
+          "h": 48
+        },
+        "inView": false,
+        "onTop": false,
+        "overlaps": []
+      },
+      "clickWorks": false,
+      "pass": false
+    },
+    {
+      "name": "nogpu_sp390",
+      "vp": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "gpu": false,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1215,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "2mid",
+          "want": 1215,
+          "stayed": true
+        },
+        {
+          "scrollTop": 2430,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "3bottom",
+          "want": 2430,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 2430,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": false,
+        "goDisabled": true
+      },
+      "pass": true
+    },
+    {
+      "name": "nogpu_pc1440",
+      "vp": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "gpu": false,
+      "errors": [],
+      "steps": [
+        {
+          "scrollTop": 0,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "1top",
+          "want": 0,
+          "stayed": true
+        },
+        {
+          "scrollTop": 933,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "2mid",
+          "want": 933,
+          "stayed": true
+        },
+        {
+          "scrollTop": 1865,
+          "goShown": false,
+          "goDisabled": true,
+          "tag": "3bottom",
+          "want": 1865,
+          "stayed": true
+        }
+      ],
+      "beforePick": {
+        "scrollTop": 0,
+        "goShown": false,
+        "goDisabled": false
+      },
+      "scrollMax": 1865,
+      "wheel": {
+        "seen": [
+          220,
+          440,
+          660,
+          880,
+          1100,
+          1320
+        ],
+        "after": 1320,
+        "monotonic": true,
+        "settled": true
+      },
+      "wheelGo": {
+        "scrollTop": 1320,
+        "goShown": false,
+        "goDisabled": true
+      },
+      "pass": true
+    }
+  ]
+}

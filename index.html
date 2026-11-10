@@ -17,6 +17,8 @@
   <!-- 1. 地点を選ぶ -->
   <section id="pick" class="screen active" aria-label="地点を選ぶ">
     <aside class="card pick-card">
+      <!-- カードは「スクロールする中身」と「いつも見える下の段」に分ける。3Dで再現するボタンは下の段に置き、中身には重ねない -->
+      <div class="pick-scroll" id="pick-scroll">
       <p class="quake" role="note"><b>強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ避難を。</b><span>このサイトは仮定の再現で、予測ではありません。</span></p>
       <header>
         <p class="eyebrow">公式の想定を確かめる<span class="sim-only"> ＋ 3Dで水の動きを見る</span></p>
@@ -35,7 +37,7 @@
       <div id="sel" class="sel" hidden>
         <div class="sel-place"><span id="sel-name">—</span><small id="sel-sub"></small></div>
         <p id="sel-zero" class="zero" hidden></p>
-        <a href="#sim-setup" class="jump sim-only">↓ 3Dで再現する（この下にあります）</a>
+        <a href="#sim-setup" class="jump sim-only" id="jump-setup">↓ 海の高さなど、3Dの条件を変える</a>
         <section id="brief" class="brief" aria-label="この地点の公式想定と、津波から逃げる場所" hidden></section>
         <p id="brief-live" class="sr-only" role="status" aria-live="polite"></p>
 
@@ -75,11 +77,7 @@
           </select>
         </div>
         </details>
-        <div class="go-bar">
-          <p id="sel-warn" class="warn" hidden></p>
-          <button id="go" class="primary" aria-describedby="go-why">この地点で、3Dで再現する</button>
-          <p id="go-why" class="src" hidden></p>
-        </div>
+        <p id="sel-warn" class="warn" hidden></p>
         </div>
       </div>
 
@@ -101,6 +99,11 @@
       <p class="fineprint sim-only"><b>防潮壁は国土地理院の「堤防等に接する海岸線・河岸」の位置に、指定した高さで入れます（実際の防潮壁は岸壁より内陸側にある区間もあります）。沖の高潮防波堤は含みません。</b>幅のある堤防や盛土（線路・道路）は地形として効きます。</p>
       <p class="fineprint">3Dの再現は仮定の計算で、予測ではありません。地形・建物・津波の形を単純化しています。避難の判断には、自治体のハザードマップと、津波警報・注意報を使ってください。</p>
       <p class="fineprint"><b>数字の出典</b>：公式想定＝内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）ケース01の浸水データを100mに集約。深さの目安＝内閣府 南海トラフ巨大地震の被害想定の手法（浸水深30cm以上で死者が発生し始め、1mでは津波に巻き込まれた人のすべてが亡くなると仮定）、気象庁（20〜30cm程度でも速い流れに巻き込まれるおそれ。木造家屋は2mで全面破壊に至る目安）。逃げる場所＝国土地理院「指定緊急避難場所データ」（津波）。確認日 2026-11-10。</p>
+      </div>
+      <div class="pick-foot" id="pick-foot" hidden>
+        <button id="go" class="primary" aria-describedby="go-why" disabled>この地点で、3Dで再現する</button>
+        <p id="go-why" class="go-why" hidden></p>
+      </div>
     </aside>
     <div id="map"></div>
     <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。黄は浅い（浅くても流されるおそれがあります）、赤・紫ほど深い。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>

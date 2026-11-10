@@ -30,10 +30,34 @@ const compact = innerWidth <= 1100 || innerHeight <= 800;
 // Only the 3-D run is switched off (and says so in words).
 let gpuOk = false;
 try { gpuOk = !!(navigator.gpu && (await navigator.gpu.requestAdapter())); } catch { gpuOk = false; }
+/**
+ * the "3Dで再現する" button lives in the card's fixed foot, so it stays in sight however far the card is scrolled.
+ *   hidden      no point chosen yet, or no WebGPU (a button that can never be pressed is not shown)
+ *   checking    the point is being looked up
+ *   ready       press to start
+ *   unavailable this point cannot be run in 3-D (the reason is in the card): a short note instead of a dead button
+ */
+function setGo(state) {
+  const go = $('go'), why = $('go-why');
+  $('pick-foot').hidden = state === 'hidden' || !gpuOk;
+  go.hidden = state === 'unavailable';
+  go.disabled = state !== 'ready';
+  go.textContent = state === 'checking' ? '地点を調べています…' : 'この地点で、3Dで再現する';
+  why.hidden = state !== 'unavailable';
+  if (state === 'unavailable') why.innerHTML = 'この地点は、3Dでは再現できません（<a href="#sel-warn" id="go-why-link">理由を見る</a>）。公式想定と逃げる場所は、上で見られます。';
+}
+// links inside the card scroll the card (no "#…" left in the address bar, which would travel with a shared link)
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('#jump-setup, #go-why-link');
+  if (!a) return;
+  e.preventDefault();
+  document.querySelector(a.getAttribute('href'))?.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+});
 function setGpuUi(why = null) {
   $('gpu-note').hidden = gpuOk;
   $('sim-setup').hidden = !gpuOk;
   document.querySelectorAll('.sim-only').forEach((n) => { n.hidden = !gpuOk; });
+  if (!gpuOk) $('pick-foot').hidden = true;
   if (why) $('gpu-note').firstChild.textContent = why;
 }
 
@@ -84,7 +108,7 @@ async function onPick(lat, lon) {
   $('sel-warn').hidden = true;
   $('sel-warn').className = 'warn';
   $('sel-zero').hidden = true;
-  $('go').disabled = true;
+  setGo('checking');
   $('Hsrc').textContent = '';
   requestAnimationFrame(() => $('sel').scrollIntoView({ block: 'start', behavior: 'smooth' }));
   // the per-case heights reach the official card as soon as they are known (not after the 3-D planning)
@@ -125,9 +149,10 @@ async function onPick(lat, lon) {
       ? `開けた海から約${(plan.distance / 1000).toFixed(1)}km離れていて、このサイトの3Dの計算範囲（最大20km四方）に海が入らないため、ここでは再現できません。「津波が来ない」という意味ではありません。上の公式想定と、自治体のハザードマップで確かめてください。`
       : plan?.reason === 'no-sea' ? '周囲16km以内に、このサイトが「開けた海」と判定できる場所がなく、ここでは再現できません。「津波や高潮が来ない」という意味ではありません。上の公式想定と、自治体のハザードマップで確かめてください。'
         : '地形データを取得できませんでした。通信の状態を確かめて、もう一度地点を選んでください。';
+    setGo('unavailable');
     return;
   }
-  $('go').disabled = false;
+  setGo('ready');
   // outline of the simulated square(s)
   const sq = (c, L) => { const f = makeFrame(c.lat, c.lon), h = L / 2; return [[-h, -h], [h, -h], [h, h], [-h, h], [-h, -h]].map(([x, z]) => { const p = f.toLatLon(x, z); return [p.lon, p.lat]; }); };
   picker.showSquare(sq(plan.center, plan.L), plan.mode === 'nest' ? sq(plan.outer.center, plan.outer.L) : null).catch((e) => console.warn(e));
@@ -678,7 +703,7 @@ async function createApp(region, o) {
   on('r-share', 'click', async () => {
     // the link carries the point and the conditions only — never this run's numbers (a bare "did not reach" travels badly)
     const u = new URL(location.href);
-    u.search = '';
+    u.search = ''; u.hash = '';
     const q = { lat: o.lat?.toFixed(5), lon: o.lon?.toFixed(5), h: H, tide: o.tide ?? 0, levee: o.levee?.enabled ? 1 : 0, crest: o.levee?.crest, breach: o.breach ? 1 : 0 };
     for (const [k, v] of Object.entries(q)) if (v != null) u.searchParams.set(k, String(v));
     const text = '津波の「もしも再現」です（予測ではありません）。この地点の公式想定と、逃げる場所を確かめられます。3Dの再現は条件しだいで結果が変わり、水が届かない結果が出ても、安全という意味ではありません。強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ。';
