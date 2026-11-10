@@ -79,6 +79,7 @@ export async function buildRegion(o) {
   res.outer = outer;
   res.official = official;
   res.stats = { dem5aShare: fromFine / (N * N), buildings: bld.stats, photoTiles: photo.got };
+  res.mapLabels = bld.labels ?? []; res.mapRoads = bld.roads ?? []; // names and road lines for the 3-D map
   res.plateau = bld.plateau; // { source, license, fields } when the A1 PLATEAU extract covered this square
   return res;
 }

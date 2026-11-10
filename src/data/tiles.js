@@ -2,6 +2,7 @@
 import { VectorTile } from '@mapbox/vector-tile';
 import { PbfReader } from 'pbf';
 import { PMTiles } from 'pmtiles';
+import { tileMapExtra, dedupeLabels } from './mapextra.js';
 import { lon2tx, lat2ty, tx2lon, ty2lat, tilesFor } from './geo.js';
 
 const GSI = 'https://cyberjapandata.gsi.go.jp/xyz';
@@ -278,7 +279,7 @@ export async function loadBuildings(frame, L, onTile) {
   const h = L / 2 + 30;
   const nw = frame.toLatLon(-h, -h), se = frame.toLatLon(h, h);
   const tiles = tilesFor({ west: nw.lon, east: se.lon, north: nw.lat, south: se.lat }, 16);
-  const all = [], lines = [];
+  const all = [], lines = [], labels = [], roads = [];
   const stats = { plateau: 0, plateauLocal: 0, bvmap: 0, tiles: tiles.length, localTiles: 0, failed: 0, lineTiles: 0 };
   const idx = await loadPlateauIndex();
   await pool(tiles, 6, async (t) => {
@@ -300,12 +301,15 @@ export async function loadBuildings(frame, L, onTile) {
       else tagGsiClass(feats, gsi);
       lines.push(...tileLines(bv, t, frame));
       stats.lineTiles++;
+      // names and road centre lines for the 3-D map, from the same tile (no extra request)
+      const ex = tileMapExtra(bv, t, frame);
+      labels.push(...ex.labels); roads.push(...ex.roads);
     }
     for (const f of feats) { stats[f.local ? 'plateauLocal' : f.src]++; all.push(f); }
     onTile?.();
   });
   const plateau = idx && stats.localTiles ? { source: idx.source ?? null, license: idx.license ?? null, fields: idx.fields ?? null } : null;
-  return { list: all, lines, stats, plateau };
+  return { list: all, lines, stats, plateau, labels: dedupeLabels(labels), roads };
 }
 
 /** coarse vector data for the wide (outer) square: z14 GSI tiles → seawall/revetment/gate lines + solid buildings */

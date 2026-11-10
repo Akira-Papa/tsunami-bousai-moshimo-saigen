@@ -161,40 +161,56 @@
       </div>
     </aside>
     <div class="dock card">
-      <div class="time">
-        <span class="k">再現の時計</span>
-        <output id="clock">00:00</output>
-        <span id="phase" class="phase">待機</span>
-        <small class="clock-note">計算の始まりからの時間です。実際に津波が来る時刻ではありません。</small>
+      <div class="now">
+        <button id="play" class="primary round" aria-label="再生">▶</button>
+        <div class="now-main">
+          <p id="now-line" class="now-line" role="status" aria-live="polite">まもなく、仮定の津波が動き出します</p>
+          <div class="band" id="band" role="img" aria-label="再現の進み具合（静か・上がる・続く・引く の4つの段階。長さは時間ではありません）">
+            <i>静か</i><i>上がる</i><i>続く（仮定）</i><i>引く</i><b id="band-pos"></b>
+          </div>
+          <p class="clockline"><span class="k">再現の時計</span> <output id="clock">00:00</output> <small class="clock-note">（実際の時刻ではありません）</small><span id="phase" class="sr-only">待機</span></p>
+        </div>
+        <label class="speed-sel"><span>速さ</span>
+          <select id="speed-sel" aria-label="再生の速さ">
+            <option value="auto" selected>おまかせ</option><option value="1">×1</option><option value="5">×5</option><option value="20">×20</option><option value="60">×60</option><option value="999">最速（一気に終わりまで）</option>
+          </select>
+        </label>
+        <button id="result-btn" class="primary small result-btn"><span class="rb-l">結果と、このあとすること</span><span class="rb-s">結果</span></button>
       </div>
       <div class="ctl">
-        <button id="play" class="primary round" aria-label="再生">▶</button>
-        <div class="seg" id="speeds" role="group" aria-label="早送り">
-          <button data-s="auto" class="on">おまかせ</button><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="999">最速</button>
+        <div class="seg" id="speeds" role="group" aria-label="再生の速さ">
+          <button data-s="auto" class="on">おまかせ</button><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="999" class="fastest" title="一気に終わりまで進めます">最速</button>
         </div>
         <div class="seg" id="views" role="group" aria-label="視点">
-          <button data-v="wide" hidden>広域</button><button data-v="over" class="on">俯瞰</button><button data-v="pin">地点</button><button data-v="eye">目線</button><button data-v="impact">衝突</button>
+          <button data-v="wide" hidden>海からここまで</button><button data-v="over" class="on">地点と海</button><button data-v="pin">ここの近く</button><button data-v="eye">立って見る</button><button data-v="impact">海側の建物</button>
         </div>
-        <p id="auto-note" class="auto-note" hidden role="status"><span id="auto-t"></span><button id="auto-keep" class="ghost small"></button></p>
+        <button type="button" id="disp-btn" class="ghost small disp-btn" aria-expanded="false" aria-controls="disp">表示 ▾</button>
       </div>
-      <details id="disp" class="disp" open>
-      <summary>表示の切りかえ</summary>
-      <div class="toggles">
-        <label><input type="checkbox" id="tg-depth" /> 深さで色分け（塗り＝この再現）</label>
-        <label><input type="checkbox" id="tg-off" /> 公式想定を重ねる（斜線）</label>
-        <label><input type="checkbox" id="tg-spray" checked /> 飛沫</label>
-        <label><input type="checkbox" id="tg-marks" checked /> 流れの印</label>
-        <label><input type="checkbox" id="tg-calm" /> 控えめ表示</label>
+      <p id="auto-note" class="auto-note" hidden role="status"><span id="auto-t"></span><button id="auto-keep" class="ghost small"></button></p>
+      <div id="disp" class="disp" hidden>
+        <div class="toggles">
+          <label><input type="checkbox" id="tg-map" checked /> 道・地名</label>
+          <label><input type="checkbox" id="tg-marks" checked /> 流れの印</label>
+          <label><input type="checkbox" id="tg-depth" /> 深さで色分け（塗り＝この再現）</label>
+          <label><input type="checkbox" id="tg-off" /> 公式想定を重ねる（斜線）</label>
+          <label><input type="checkbox" id="tg-spray" checked /> 飛沫</label>
+          <label><input type="checkbox" id="tg-calm" /> 動きを減らす（飛沫を消し、深さで色分け）</label>
+        </div>
+        <p id="marks-legend" class="marks-legend"><i></i>白い細い線＝水の流れの向きと速さの目印（計算から描いた印。波や漂流物ではありません）</p>
+        <p class="marks-legend front"><i></i>水のふちの明るい線＝深さ約5cmの所（その先にも、うすい水が広がっています）</p>
       </div>
-      <p id="marks-legend" class="marks-legend"><i></i>白い細い線＝水の流れの向きと速さの目印（計算から描いた印。波や漂流物ではありません）</p>
-      <p class="marks-legend front"><i></i>水のふちの明るい線＝深さ約5cmの所（その先にも、うすい水が広がっています）</p>
-      </details>
-      <button id="result-btn" class="primary small result-btn">結果と、このあとすること</button>
       <div id="legend" hidden>
         <div class="legend-k"><span>深さ（m）</span><span><i class="sw fill"></i>塗り＝この再現</span><span><i class="sw hatch"></i>斜線＝公式想定（内閣府2025）</span></div>
         <div class="legend"><span style="--c:#ffffb3">〜0.3</span><span style="--c:#f7f5a9">0.3〜1</span><span style="--c:#ffd8c0">1〜2</span><span style="--c:#ffb7b7">2〜5</span><span style="--c:#ff9191">5〜10</span><span style="--c:#f285c9">10〜20</span><span style="--c:#dc7adc">20〜</span></div>
       </div>
     </div>
+    <div class="navpad" role="group" aria-label="3Dの視点を動かす">
+      <button type="button" id="nav-n" class="navbtn" aria-label="北を上にする" title="北を上にする（N）"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g id="nav-needle"><path d="M12 3l4 9h-8z" fill="#ff6a57"/><path d="M12 21l-4-9h8z" fill="#cfd8df"/></g></svg><span>北</span></button>
+      <button type="button" id="nav-home" class="navbtn" aria-label="選んだ地点へ戻る" title="選んだ地点へ戻る（0）">◎</button>
+      <button type="button" id="nav-in" class="navbtn pc" aria-label="近づく" title="近づく（＋）">＋</button>
+      <button type="button" id="nav-out" class="navbtn pc" aria-label="離れる" title="離れる（−）">−</button>
+    </div>
+    <p id="nav-hint" class="nav-hint" hidden></p>
     <div id="perf" class="perf" aria-hidden="true"></div>
     <p class="credit">出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（地理院タイル：写真・標高タイル、国土地理院ベクトルタイル提供実験、住所検索）。地理院タイル（標高タイル）を加工して作成／<span id="credit-plateau"><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成</span>／内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データを集約加工して作成</p>
     <div id="toast" class="toast" hidden role="status"><span id="toast-t"></span><button id="toast-yes" class="ghost small">色分けする</button><button id="toast-no" class="ghost small" aria-label="閉じる">×</button></div>

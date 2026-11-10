@@ -532,3 +532,110 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .marks-legend[hidden] { display: none; }
 .marks-legend i { display: inline-block; width: 26px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; background: linear-gradient(90deg, rgba(237, 247, 255, 0), #edf7ff); }
 .marks-legend.front i { height: 0; border-top: 2px solid #eef8f4; background: none; border-radius: 0; opacity: 0.9; }
+
+/* ═════════ 3Dの画面の組み直し（2026-11-10・設計「11」C1・C4・D1'）═════════
+   下の操作＝2行（1行目：再生・いまの様子と進み具合の帯・速さ・結果／2行目：視点・表示）。
+   スマホ幅では、上の欄を2行、下の操作を2行にして、3Dの見える所を画面の6割以上にする。 */
+#sim .dock { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; }
+#sim .now { display: flex; align-items: center; gap: 12px; }
+#sim .now-main { flex: 1 1 auto; min-width: 0; display: grid; gap: 4px; }
+#sim .now-line { margin: 0; font-size: 15px; font-weight: 700; color: #fff; line-height: 1.35; }
+#sim .band { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; height: 16px; }
+#sim .band i { font-style: normal; font-size: 10px; line-height: 16px; text-align: center; color: var(--ink-3); background: rgba(255, 255, 255, .07); border-radius: 3px; white-space: nowrap; overflow: hidden; }
+#sim .band[data-seg="0"] i:nth-of-type(1), #sim .band[data-seg="1"] i:nth-of-type(2), #sim .band[data-seg="2"] i:nth-of-type(3), #sim .band[data-seg="3"] i:nth-of-type(4) { background: rgba(79, 179, 217, .34); color: #fff; font-weight: 700; }
+#sim .band b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; box-shadow: 0 0 4px rgba(0, 0, 0, .7); }
+#sim .clockline { margin: 0; font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+#sim .clockline output { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--ink-2); }
+#sim .clock-note { flex-basis: auto; margin: 0; font-size: 11px; }
+#sim .speed-sel { display: none; }
+#sim .result-btn { align-self: center; white-space: nowrap; min-height: 44px; }
+#sim .rb-s { display: none; }
+#sim .ctl { gap: 8px; }
+#sim .seg button { min-height: 44px; min-width: 44px; font-size: 13px; padding: 8px 10px; white-space: nowrap; }
+/* 「最速」は、×60 の隣で押しまちがえると一気に終わりへ飛ぶ：少し離して、控えめに */
+#sim .seg button.fastest { border-left: 4px double var(--line); color: var(--ink-3); font-size: 12px; }
+#sim .disp-btn { margin-left: auto; min-height: 44px; white-space: nowrap; }
+#sim .disp { display: grid; gap: 4px; }
+#sim .disp[hidden] { display: none; }
+#sim .marks-legend { margin: 0; }
+#sim .auto-note { flex: none; margin: 0; }
+/* 視点を動かすボタン（方位＝北を上に・地点へ戻る・近づく・離れる） */
+#sim .navpad { position: absolute; z-index: 5; left: 16px; top: 50%; transform: translateY(-50%); display: grid; gap: 6px; }
+#sim .navbtn { position: relative; width: 44px; height: 44px; padding: 0; border-radius: 12px; border: 1px solid var(--line); background: rgba(9, 18, 26, .8); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+#sim .navbtn:hover { background: rgba(30, 50, 66, .92); }
+#sim #nav-n svg { margin-top: -6px; }
+#sim #nav-n span { position: absolute; left: 0; right: 0; bottom: 2px; font-size: 9px; color: var(--ink-2); text-align: center; }
+#sim #nav-needle { transform-origin: 12px 12px; }
+#sim .nav-hint { position: absolute; z-index: 5; left: 50%; bottom: calc(var(--dock-h, 200px) + var(--credit-h, 14px) + 28px); transform: translateX(-50%); margin: 0; background: rgba(9, 18, 26, .86); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; font-size: 13px; pointer-events: none; max-width: calc(100vw - 24px); text-align: center; }
+#sim .nav-hint[hidden] { display: none; }
+#stage3d canvas:focus-visible { outline: 3px solid var(--sea); outline-offset: -3px; }
+/* 3Dの地図の名前の札（国土地理院ベクトルタイル）：駅＞学校＞病院・消防・警察・官公署＞町名 */
+.lbl.mp { background: rgba(255, 255, 255, .9); color: #1b2730; font-weight: 600; font-size: 12px; padding: 2px 7px; border-radius: 5px; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.lbl.mp-st { background: #fff; border: 1.5px solid #2b6cb0; color: #173a5e; font-weight: 700; }
+.lbl.mp-tw { background: rgba(16, 26, 36, .62); color: #fff; font-weight: 500; box-shadow: none; }
+@media (max-width: 760px) {
+  #sim .badge { top: 4px; left: 6px; right: 6px; max-width: none; padding: 2px 10px; border-radius: 10px; font-size: 11px; line-height: 1.25; gap: 0; }
+  #sim .badge span { font-size: 11px; }
+  #sim .topbar { top: 40px; left: 6px; right: 6px; padding: 0 0 0 12px; min-height: 44px; height: 44px; }
+  #sim .hud { top: 87px; left: 6px; right: 6px; width: auto; padding: 6px 6px 6px 10px; display: grid; grid-template-columns: auto 1fr auto; gap: 0 10px; align-items: center; }
+  #sim .hud.closed { max-height: none; overflow: visible; }
+  #sim .hud:not(.closed) { max-height: calc(100dvh - 87px - var(--dock-h, 140px) - 14px); overflow-y: auto; }
+  #sim .hud-main { display: contents; }
+  #sim .hud-main > .k { grid-column: 1; grid-row: 1; font-size: 10px; line-height: 1.2; }
+  #sim .hud-main .big { grid-column: 1; grid-row: 2; }
+  #sim .hud-main .big output { font-size: 26px; }
+  #sim .hud-main .big span { font-size: 12px; }
+  #sim .hud-off { grid-column: 2; grid-row: 1 / 3; align-self: center; margin: 0; padding: 0 0 0 10px; border-top: 0; border-left: 1px solid var(--line); font-size: 12px; line-height: 1.3; }
+  #sim .hud-off .k { font-size: 10px; }
+  #sim .say { grid-column: 1 / -1; grid-row: 3; font-size: 12px; line-height: 1.4; margin-top: 3px; min-height: 0; }
+  #sim .hud-more { grid-column: 3; grid-row: 1 / 3; align-self: center; min-height: 44px; padding: 0 10px; }
+  #sim .hud-detail { grid-column: 1 / -1; }
+  #sim .dock { bottom: 6px; width: calc(100vw - 12px); padding: 6px 8px; gap: 5px; }
+  #sim .now { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 4px 6px; align-items: center; }
+  #sim .now-main { display: contents; }
+  #sim .now-line { grid-column: 2; grid-row: 1; font-size: 13px; }
+  #sim .band { grid-column: 1 / 3; grid-row: 2; height: 8px; }
+  #sim .band i { font-size: 0; }
+  #sim .clockline { grid-column: 3 / -1; grid-row: 2; font-size: 10px; gap: 3px; justify-content: flex-end; }
+  #sim .clockline .k { display: none; }
+  #sim .clockline output { font-size: 12px; }
+  #sim .clock-note { font-size: 10px; }
+  #sim .round { width: 44px; height: 44px; grid-column: 1; grid-row: 1; }
+  #sim .speed-sel { display: block; grid-column: 3; grid-row: 1; }
+  #sim .speed-sel span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #sim .speed-sel select { min-height: 44px; max-width: 116px; font-size: 13px; color: #fff; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); border-radius: 10px; padding: 0 4px; }
+  #sim #speeds { display: none; }
+  #sim .result-btn { grid-column: 4; grid-row: 1; padding: 0 12px; }
+  #sim .rb-l { display: none; }
+  #sim .rb-s { display: inline; }
+  #sim .ctl { flex-wrap: nowrap; gap: 6px; }
+  #sim #views { flex: 1 1 auto; min-width: 0; }
+  #sim #views button { flex: 1 1 auto; min-width: 0; padding: 6px 2px; font-size: 12px; white-space: nowrap; }
+  #sim .disp-btn { flex: none; padding: 0 8px; }
+  #sim .auto-note { font-size: 12px; padding: 2px 2px 2px 10px; flex-wrap: nowrap; justify-content: space-between; }
+  #sim .auto-note .why { display: none; }
+  #sim .toggles label { min-height: 44px; white-space: normal; }
+  #sim .navpad { left: auto; right: 6px; top: auto; bottom: calc(var(--dock-h, 140px) + 14px); transform: none; }
+  #sim .navpad .pc { display: none; }
+  #sim .nav-hint { bottom: calc(var(--dock-h, 140px) + 18px); left: 6px; right: 62px; transform: none; max-width: none; font-size: 12px; border-radius: 12px; }
+}
+
+/* ═════════ 地点を選んだ直後のカード：スマホ幅の「最初の画面」（設計「11」C2）═════════
+   公式想定・状態の1文・いちばん近い【指定】の逃げる場所・続きの入口。PC幅は下の各欄がそのまま見えるので出さない。 */
+.brief-top { display: none; }
+@media (max-width: 760px) {
+  .brief-top { display: grid; gap: 6px; margin: 0 0 14px; }
+  .brief-top p { margin: 0; font-size: 13px; line-height: 1.5; }
+  .bt-off { display: grid; gap: 0; }
+  .bt-off .k { font-size: 11px; color: var(--ink-3); }
+  .bt-off b { font-family: var(--mono); font-size: 20px; color: #fff; }
+  .bt-off b.deep { color: #ffb38a; }
+  .bt-off small { margin-left: 6px; font-size: 11px; color: #ffb38a; font-weight: 700; }
+  .bt-state { background: rgba(242, 184, 75, .12); border: 1px solid rgba(242, 184, 75, .5); border-radius: 10px; padding: 6px 10px; }
+  .bt-evac { display: flex; gap: 8px; align-items: flex-start; background: rgba(62, 207, 142, .1); border: 1px solid rgba(62, 207, 142, .5); border-radius: 10px; padding: 6px 10px; }
+  .bt-more { display: block; min-height: 44px; padding: 10px 0; font-size: 13px; color: var(--sea); }
+  /* 上を詰める：地点名の下の「条件を変える」への入口は、スマホでは続きの中にあるので、最初の画面からは外す */
+  #pick #jump-setup { display: none; }
+  .quake { font-size: 12px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) { #sim .seg button { padding: 8px 7px; font-size: 12px; } #sim .ctl { gap: 6px; } }

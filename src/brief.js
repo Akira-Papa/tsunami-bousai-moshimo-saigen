@@ -67,6 +67,55 @@ export function officialHtml(o, info = null) {
 }
 
 /**
+ * スマホ幅の「最初の画面」に収める要約：公式想定・状態の1文・いちばん近い【指定】の逃げる場所・続きの入口。
+ * 決まり：状態に結びつく注意（猶予ではない／安全という意味ではない／ケース01が最大でない）は、ここに出して畳まない。
+ * 一般の説明と出典だけが、下（続き）に回る。くわしい中身は、下の各欄と同じデータから作る。
+ */
+export function topHtml(cur) {
+  const o = cur.official, ev = cur.evac, rt = cur.route;
+  let off, state = '';
+  if (!o) off = '確認中…';
+  else if (o.state === 'hit') {
+    const c = o.cell, a = o.around, deeper = a?.n && a.max > c.depth + 0.05;
+    off = `ここ <b>${c.depth.toFixed(1)}m</b>${deeper ? `／周り${a.R}m以内 <b class="deep">${a.max.toFixed(1)}m</b><small>備えは深いほうで</small>` : ''}`;
+    state = c.arrival != null && Number.isFinite(c.arrival)
+      ? `${arrivalSentence(c.arrival)}<b class="notsafe">逃げるまでの猶予の時間ではありません。</b>`
+      : esc(depthSay(Math.max(c.depth, deeper ? a.max : 0))[0]);
+  } else if (o.state === 'none') {
+    const a = o.around;
+    off = 'この100m四方に、浸水のセルはありません';
+    state = `<b class="notsafe">安全という意味ではありません。</b>${a?.n ? `${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m）。` : 'ほかのケースや、堤防が早く壊れる場合には、浸水することがあります。'}`;
+  } else if (o.state === 'outside') {
+    off = 'この地点は、収録している公式データの範囲の外です';
+    state = '<b class="notsafe">「浸水しない」という意味ではありません。</b>自治体のハザードマップで確かめてください。';
+  } else {
+    off = '取得できませんでした（通信）';
+    state = '<b class="notsafe">「浸水しない」という意味ではありません。</b>';
+  }
+  const n = cur.info ? caseNote(cur.info.row) : null;
+  const caseWarn = n?.lower ? `<p class="bt-state warnish"><b>ケース01は、この地域で津波が最も高くなるケースではありません</b>（11ケースの最大は${n.max}m）。浸水は、ここの値より深く・広くなることがあります。</p>` : '';
+  let near;
+  if (!ev) near = '逃げる場所を確認中…';
+  else if (ev.status === 'failed') near = '<b class="notsafe">逃げる場所のデータを取得できませんでした。「近くにない」という意味ではありません。</b>';
+  else if (!ev.sites.length) near = '1km以内に、津波の指定緊急避難場所は見つかりませんでした。<b class="notsafe">「逃げる場所がない」という意味ではありません。</b>';
+  else {
+    // the nearest by road when the road distances have arrived, otherwise the nearest in a straight line
+    let i = 0, d = ev.sites[0].d, road = false;
+    if (rt?.status === 'ok') {
+      const idx = ev.sites.map((_, k) => k).filter((k) => rt.sites[k]?.road != null).sort((x, y) => rt.sites[x].road - rt.sites[y].road);
+      if (idx.length) { i = idx[0]; d = rt.sites[i].road; road = true; }
+    }
+    const w = walkMin(d);
+    near = `<span class="route-tag site">指定</span><span><b>${esc(ev.sites[i].name)}</b>　${road ? '道のり' : '直線で'}${distJa(d)}・歩いて約${w.fast}〜${w.slow}分（目安）。<b class="notsafe">通れるとは限りません。</b></span>`;
+  }
+  const more = ev?.sites?.length > 1 ? `ほか${ev.sites.length - 1}件の逃げる場所・` : '';
+  return `<p class="bt-off"><span class="k">公式想定（内閣府2025・ケース01）</span><span>${off}</span></p>`
+    + (state ? `<p class="bt-state">${state}</p>` : '') + caseWarn
+    + `<p class="bt-evac">${near}</p>`
+    + `<a class="bt-more" href="#brief-h" id="bt-more">↓ ${more}道のり・出典・ケース01の説明</a>`;
+}
+
+/**
  * 津波から逃げる場所（指定緊急避難場所）の一覧。
  * @param ev      loadEvacSites() の結果（null = 確認中）
  * @param first   最初に見せる件数（残りは畳む）
@@ -302,6 +351,7 @@ export function createBrief({ map, getH = () => 5 }) {
   function skeleton() {
     el.hidden = false;
     el.innerHTML = `
+      <div class="brief-top" id="brief-top"></div>
       <h2 class="brief-h" id="brief-h" tabindex="-1">この地点の公式想定<small>${OFFICIAL_NAME}</small></h2>
       <div class="brief-off" id="brief-off"></div>
       <h3 class="brief-h3">津波から逃げる場所<small>指定緊急避難場所（津波）・1km以内の近い順</small></h3>
@@ -314,6 +364,7 @@ export function createBrief({ map, getH = () => 5 }) {
   }
   function part(which) {
     if (!cur || !$('brief-off')) return;
+    $('brief-top').innerHTML = topHtml(cur); // the first screen on a phone (every part feeds it)
     if (which === 'off') $('brief-off').innerHTML = officialHtml(cur.official, cur.info);
     if (which === 'evac') {
       // rebuilt when the road distances arrive: keep the reader's place (an opened "ほか○件", the focused item)

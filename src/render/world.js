@@ -10,6 +10,7 @@ import {
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { LIB, WATER_FN, CAUSTIC_FN } from './shaders.js';
 import { createOuterLayer } from './outer.js';
+import { roadCanvas } from './maplayer.js';
 
 export function createWorld(renderer, region, solver, opts = {}) {
   const { N, L, dx } = region;
@@ -102,6 +103,12 @@ export function createWorld(renderer, region, solver, opts = {}) {
   offTex.flipY = false;
   offTex.colorSpace = THREE.SRGBColorSpace;
   const uShowOfficial = uniform(0);
+  // roads (centre lines from the GSI vector tiles) painted thinly over DRY ground: the aerial photo blurs when
+  // the camera comes close (one pixel ≈ 1 m) and the streets can no longer be read
+  const roadTex = new THREE.CanvasTexture(roadCanvas(region.mapRoads ?? [], L));
+  roadTex.flipY = false;
+  roadTex.anisotropy = 4;
+  const uShowMap = uniform(region.mapRoads?.length ? 1 : 0);
   const uShowMax = uniform(0);
 
   // ── caustics (top-down map of the flooded ground) ──
@@ -157,6 +164,9 @@ export function createWorld(renderer, region, solver, opts = {}) {
     col = mix(col, vec3(0.30, 0.26, 0.20), mud.mul(0.35).mul(wet));
     col = mix(col, vec3(0.30, 0.33, 0.28), bedI.z); // sea floor under the (always present) sea
     const off = texture(offTex, tuv);
+    // cream road lines: only on dry land (never over the sea floor, never over wet ground — the water has its own marks)
+    const road = texture(roadTex, tuv).a;
+    col = mix(col, vec3(0.97, 0.93, 0.80), road.mul(uShowMap).mul(0.46).mul(float(1).sub(wet)).mul(float(1).sub(bedI.z)));
     col = mix(col, off.rgb, off.a.mul(uShowOfficial).mul(0.85));
     // max-depth map (after the run)
     mat.colorNode = col;
@@ -366,7 +376,7 @@ export function createWorld(renderer, region, solver, opts = {}) {
   }
 
   return {
-    scene, camera, pipeline, uEnv, uL, setSun, uShowOfficial, uShowMax, uOuterEta, outerLayer, uShowTall, setHighlight, markWashed,
+    scene, camera, pipeline, uEnv, uL, setSun, uShowOfficial, setMapVisible(on) { uShowMap.value = on && region.mapRoads?.length ? 1 : 0; }, uShowMax, uOuterEta, outerLayer, uShowTall, setHighlight, markWashed,
     terrain, buildings, water, spray, marks, uMark, renderCaustics, causticScene, causticCam,
     dispose() {
       for (const sc of [scene, causticScene]) sc.traverse((o) => {
@@ -380,7 +390,7 @@ export function createWorld(renderer, region, solver, opts = {}) {
       scenePass.dispose?.(); pipeline.dispose?.(); bl.dispose?.();
       outer?.[2].forEach((t) => t.dispose());
       outerLayer?.dispose();
-      photoTex.dispose(); bedTex.dispose(); causticRT.dispose(); offTex.dispose();
+      photoTex.dispose(); bedTex.dispose(); causticRT.dispose(); offTex.dispose(); roadTex.dispose();
     },
   };
 }
