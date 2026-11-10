@@ -117,8 +117,12 @@ export function snapToGraph(g, px, pz, maxD = 150) {
   if (!best || best.d > maxD) return null;
   if (best.t < 1e-3) return { id: best.a, d: best.d };
   if (best.t > 1 - 1e-3) return { id: best.b, d: best.d };
+  // split the road at that point: the old a–b edge is REPLACED by a–new and new–b. (Leaving a–b in place made
+  // a second point snapped onto the same stretch attach to the old edge and detour through a or b.)
   const id = g.x.length;
   g.x.push(best.qx); g.z.push(best.qz); g.adj.push([]);
+  g.adj[best.a] = g.adj[best.a].filter((e) => e[0] !== best.b);
+  g.adj[best.b] = g.adj[best.b].filter((e) => e[0] !== best.a);
   for (const o of [best.a, best.b]) { const len = Math.hypot(g.x[o] - best.qx, g.z[o] - best.qz); g.adj[id].push([o, len]); g.adj[o].push([id, len]); }
   return { id, d: best.d };
 }

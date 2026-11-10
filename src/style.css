@@ -522,3 +522,4 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .route-tag.high { background: #c2410c; }
 .route-miss { font-size: 13px; line-height: 1.7; display: flex; gap: 8px; align-items: flex-start; padding: 4px 2px; }
 .high-marker { width: 26px; height: 26px; border-radius: 6px; background: #c2410c; color: #fff; font-weight: 800; font-size: 14px; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.45); font-family: var(--font); }
+.route-sum { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink); }

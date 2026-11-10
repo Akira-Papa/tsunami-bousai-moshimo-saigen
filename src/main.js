@@ -822,14 +822,21 @@ async function createApp(region, o) {
     $('r-share-msg').textContent = '';
     // the nearest designated place goes right under the call to act: on a phone the full list can fall below the first screen
     $('r-near').hidden = true;
-    o.briefP?.then((bf) => {
+    o.briefP?.then(async (bf) => {
       const s = bf?.evac?.status === 'ok' ? bf.evac.sites[0] : null;
-      if (!s || !isDialogOpen($('result'))) return;
-      // the way there along the roads, when it could be worked out (otherwise the straight-line figure)
-      const road = bf.route?.status === 'ok' ? bf.route.sites?.[0]?.road : null;
-      const dWalk = road ?? s.d;
+      if (!s) return;
+      // the road distances usually arrive a moment after the places: wait briefly for them
+      if (bf.routeP) await Promise.race([bf.routeP, new Promise((r) => setTimeout(r, 2500))]);
+      if (!isDialogOpen($('result'))) return;
+      // with road distances: the place nearest BY ROAD; without them: nearest in a straight line — and say which
+      const rs = bf.route?.status === 'ok' ? bf.route.sites : null;
+      let pick = 0;
+      if (rs) { let best = Infinity; bf.evac.sites.forEach((_, k) => { if (rs[k]?.road != null && rs[k].road < best) { best = rs[k].road; pick = k; } }); }
+      const sN = bf.evac.sites[pick];
+      const road = rs?.[pick]?.road ?? null;
+      const dWalk = road ?? sN.d;
       const w = walkMin(dWalk);
-      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　${road != null ? `道のり${distJa(road)}（目安・直線では${distJa(s.d)}）` : `直線で${distJa(s.d)}`}・${s.bearing}の方向。歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）${dWalk > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
+      $('r-near').innerHTML = `${road != null ? '道のりでいちばん近い' : '直線でいちばん近い'}、津波の指定緊急避難場所：<b>${esc(sN.name)}</b>　${road != null ? `道のり${distJa(road)}（目安・直線では${distJa(sN.d)}）` : `直線で${distJa(sN.d)}`}・${sN.bearing}の方向。歩く目安：約${w.fast}分（平均の速さでは約${w.real}分）${dWalk > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
       $('r-near').hidden = false;
     }).catch(() => {});
     if (!isDialogOpen($('result'))) {
