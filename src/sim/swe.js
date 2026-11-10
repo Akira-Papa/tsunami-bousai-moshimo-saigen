@@ -426,8 +426,12 @@ export function createSolver(renderer, region, opts = {}) {
   // gather where the flow is (and their density stays bounded: nothing piles up in a narrow jet).
   const MARKS = opts.marks ?? (N >= 768 ? 32768 : 16384);
   const FM = instancedArray(MARKS, 'vec4');
-  const FV = instancedArray(MARKS, 'vec4'); // u, v (m/s), water level η (m), 1 = drawn
+  const FV = instancedArray(MARKS, 'vec4'); // u, v (m/s), water level η (m), 0 = resting / 1 = over land / 0.5 = over the sea
   const uMk = uniform(new THREE.Vector4(0, 0, 0, 0)); // screen dt (s), simulated seconds the marks travel, frame id, —
+  // How many marks are out at once: a mark lives 3–5 s, then RESTS 5–13 s before it tries one random cell again
+  // (and rests again when that cell is dry or still). With a long rest the number of marks per flooded area is
+  // about the same whether a harbour front (Nagoya) or the whole square (Kōchi, a 15 m wave) is under water —
+  // with a short rest every mark crowded into the flooded part, and a fully flooded square was white with them.
   const markUpdate = Fn(() => {
     const id = instanceIndex;
     const p = FM.element(id).toVar();
@@ -441,16 +445,20 @@ export function createSolver(renderer, region, opts = {}) {
       const k = cellOf(nx, nz);
       const f = R2.element(k);
       age.assign(0);
-      If(A.element(k).x.greaterThan(0.05).and(S.element(k).y.lessThan(0.5)).and(length(f.zw).greaterThan(0.3)), () => {
+      // on the sea only about one try in four takes: the eye should go to the water that is on LAND
+      // (S.w = 1: land that started dry), and a harbour full of eddies must not be the loudest thing on screen
+      const onSea = S.element(k).w.lessThan(0.5);
+      const take = onSea.not().or(hash(vec2(seed.add(11.7), uMk.z.mul(0.377))).lessThan(0.27));
+      If(A.element(k).x.greaterThan(0.05).and(S.element(k).y.lessThan(0.5)).and(length(f.zw).greaterThan(0.3)).and(take), () => {
         px.assign(nx); pz.assign(nz); life.assign(r3.mul(2).add(3));
-      }).Else(() => { life.assign(r3.mul(-1.5).sub(0.5)); });
+      }).Else(() => { life.assign(r3.mul(-8).sub(5)); });
     });
     const k0 = cellOf(px, pz);
     const f0 = R2.element(k0).zw.toVar();
     If(life.greaterThan(0), () => {
       const out = abs(px).greaterThan(L / 2 - dx).or(abs(pz).greaterThan(L / 2 - dx));
       If(out.or(A.element(k0).x.lessThan(0.03)).or(S.element(k0).y.greaterThan(0.5)).or(length(f0).lessThan(0.1)), () => {
-        life.assign(r3.mul(-1.5).sub(0.5)); age.assign(0);
+        life.assign(r3.mul(-8).sub(5)); age.assign(0);
       }).Else(() => {
         // midpoint rule along the computed flow
         const fm = R2.element(cellOf(px.add(f0.x.mul(uMk.y).mul(0.5)), pz.add(f0.y.mul(uMk.y).mul(0.5)))).zw;
@@ -459,7 +467,8 @@ export function createSolver(renderer, region, opts = {}) {
     });
     const k1 = cellOf(px, pz);
     FM.element(id).assign(vec4(px, pz, age, life));
-    FV.element(id).assign(vec4(R2.element(k1).zw, R.element(k1).x, select(life.greaterThan(0), float(1), float(0))));
+    // w: 0 = resting (not drawn), 1 = over flooded land, 0.5 = over the sea (drawn fainter)
+    FV.element(id).assign(vec4(R2.element(k1).zw, R.element(k1).x, select(life.greaterThan(0), select(S.element(k1).w.greaterThan(0.5), float(1), float(0.5)), float(0))));
   })().compute(MARKS);
 
   // the coastal level for the wave controller, read at FIXED sub-step numbers (see step()): own counters,

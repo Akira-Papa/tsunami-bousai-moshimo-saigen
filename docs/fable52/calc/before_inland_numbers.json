@@ -1,0 +1,236 @@
+{
+  "label": "before_inland",
+  "base": "http://127.0.0.1:5351",
+  "at": "2026-11-10T10:54:08.244Z",
+  "repeat": 2,
+  "speed": 60,
+  "extra": "",
+  "cases": {
+    "inland": {
+      "title": "名古屋駅の近く（内陸・二段計算）",
+      "query": "&lat=35.1709&lon=136.8815&n=512",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [],
+          "rows": [
+            {
+              "t": 3000.045,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.49,
+              "mean": 4.971,
+              "meanMax": 5.249,
+              "front": 5935.8,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 4001.484,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.474,
+              "mean": 5.013,
+              "meanMax": 5.249,
+              "front": 5228,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 5000.075,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.471,
+              "mean": 3.026,
+              "meanMax": 5.249,
+              "front": 4618.8,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            }
+          ],
+          "conditions": {
+            "N": 512,
+            "dx": 2.9296875,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": true,
+            "speed": 60,
+            "speedUsed": 60
+          }
+        },
+        {
+          "rep": 2,
+          "errors": [],
+          "rows": [
+            {
+              "t": 3005.919,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.49,
+              "mean": 4.973,
+              "meanMax": 5.253,
+              "front": 5938.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 4003.086,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.474,
+              "mean": 5.012,
+              "meanMax": 5.253,
+              "front": 5241.8,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 5005.593,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.471,
+              "mean": 3.028,
+              "meanMax": 5.253,
+              "front": 4631.9,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            }
+          ],
+          "conditions": {
+            "N": 512,
+            "dx": 2.9296875,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": true,
+            "speed": 60,
+            "speedUsed": 60
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 3000,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.49,
+            "max": 0.49,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.249,
+            "max": 5.253,
+            "n": 2
+          },
+          "front": {
+            "min": 5935.8,
+            "max": 5938.7,
+            "n": 2
+          }
+        },
+        {
+          "t": 4000,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.474,
+            "max": 0.474,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.249,
+            "max": 5.253,
+            "n": 2
+          },
+          "front": {
+            "min": 5228,
+            "max": 5241.8,
+            "n": 2
+          }
+        },
+        {
+          "t": 5000,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.471,
+            "max": 0.471,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.249,
+            "max": 5.253,
+            "n": 2
+          },
+          "front": {
+            "min": 4618.8,
+            "max": 4631.9,
+            "n": 2
+          }
+        }
+      ]
+    }
+  }
+}

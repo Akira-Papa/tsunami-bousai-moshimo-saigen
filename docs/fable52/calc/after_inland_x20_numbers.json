@@ -1,0 +1,82 @@
+{
+  "label": "after_inland_x20",
+  "base": "http://127.0.0.1:5352",
+  "at": "2026-11-10T13:07:52.695Z",
+  "repeat": 1,
+  "speed": 20,
+  "extra": "",
+  "cases": {
+    "inland": {
+      "title": "名古屋駅の近く（内陸・二段計算）",
+      "query": "&lat=35.1709&lon=136.8815&n=512",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [],
+          "rows": [
+            {
+              "t": 3002.181,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.49,
+              "mean": 4.965,
+              "meanMax": 5.252,
+              "front": 5938.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            }
+          ],
+          "conditions": {
+            "N": 512,
+            "dx": 2.9296875,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": true,
+            "speed": "auto",
+            "speedUsed": 20
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 3000,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.49,
+            "max": 0.49,
+            "n": 1
+          },
+          "meanMax": {
+            "min": 5.252,
+            "max": 5.252,
+            "n": 1
+          },
+          "front": {
+            "min": 5938.7,
+            "max": 5938.7,
+            "n": 1
+          }
+        }
+      ]
+    }
+  }
+}

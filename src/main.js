@@ -753,6 +753,7 @@ async function createApp(region, o) {
   on('speeds', 'click', speedsClick);
   on('speed-sel', 'change', (e) => { const v = e.target.value; st.speed = v === 'auto' ? 'auto' : Number(v); $('auto-note').hidden = true; showSpeed(); });
   on('auto-keep', 'click', () => { st.speed = baseSpeed; st.hl = null; $('auto-note').hidden = true; showSpeed(); });
+  cleanups.push(() => { $('auto-note').hidden = true; });
   // the highlight: slow down while the water comes ashore (announced, and one press keeps the fast speed).
   // It only chooses how fast the SAME computation is shown — the water itself does not depend on it.
   function highlight(front) {
@@ -771,31 +772,34 @@ async function createApp(region, o) {
     const closing = st.hlClosing ?? 0;
     const near = st.arrived == null && front < 200 && closing > 0.4 && front / closing < 60;
     const begin = (kind, text, until) => {
-      st.hl = { kind, until }; st.hlSeen[kind] = (st.hlSeen[kind] || 0) + 1; st.hlStall = 0;
-      $('auto-t').innerHTML = `<span class="why">${text}、</span>ゆっくり（×${SLOW}）にしました。`;
-      $('auto-keep').textContent = `×${baseSpeed}のまま`;
+      st.hl = { kind, until, begin: t }; st.hlSeen[kind] = (st.hlSeen[kind] || 0) + 1; st.hlStall = 0;
+      // the note stays for as long as the slow-down lasts (it used to vanish after 9 s while ×5 went on)
+      $('auto-t').innerHTML = `<span class="why">${text}、</span>ゆっくり再生中（×${SLOW}）`;
+      $('auto-keep').textContent = `×${baseSpeed}に戻す`;
       $('auto-note').hidden = false;
-      clearTimeout(st.hlTimer);
-      st.hlTimer = setTimeout(() => { $('auto-note').hidden = true; }, 9000);
       showSpeed();
     };
-    const end = () => { st.hl = null; $('auto-note').hidden = true; showSpeed(); };
-    const breached = (solver.coast.breached || outerSolver?.coast.breached || 0) > 0;
+    // going back to the normal speed is an automatic change as well: it is said, too
+    const end = () => { st.hl = null; $('auto-note').hidden = true; showSpeed(); sayEvent(`ふだんの速さ（×${baseSpeed}）に戻しました`, 4); };
+    // a seawall of the wide square (inland points) counts only while the wide view is on: from the close views
+    // nothing of it can be seen, and the run would crawl for no visible reason
+    const breached = solver.coast.breached > 0 || ((outerSolver?.coast.breached ?? 0) > 0 && rig.view === 'wide');
     if (!st.hlSeen.breach && breached) begin('breach', '水が防潮壁を越えたので', t + 120);
     else if (!st.hl) {
       if ((st.hlSeen.near || 0) < 2 && near) begin('near', '水が近づいたので', t + 120);
     } else if (st.hl.kind === 'near') {
       // until 60 simulated seconds after the water reached the point — or until the front stops coming
-      if (st.arrived != null) st.hl.until = Math.min(st.hl.until, st.arrived + 60);
+      // (at most 240 simulated seconds in all)
+      if (st.arrived != null) st.hl.until = Math.min(st.hl.begin + 240, st.arrived + 60);
       else if (st.hlStall >= 2) st.hl.until = Math.min(st.hl.until, t); // 16 s without progress: it has stopped
-      if (t >= st.hl.until) end();
+      // still coming and not here yet: stay slow (never back to fast for the last few seconds before it arrives)
+      if (t >= st.hl.until) { if (st.arrived == null && (st.hlStall || 0) < 2 && t < st.hl.begin + 240) st.hl.until = t + 16; else end(); }
     } else {
       // the seawall highlight hands over to "near" when the water then runs up to the point
-      if ((st.hlSeen.near || 0) < 2 && near && t > st.hl.until - 30) { st.hl = { kind: 'near', until: t + 120 }; st.hlSeen.near = (st.hlSeen.near || 0) + 1; st.hlStall = 0; }
+      if ((st.hlSeen.near || 0) < 2 && near && t > st.hl.until - 30) { st.hl = { kind: 'near', until: t + 120, begin: t }; st.hlSeen.near = (st.hlSeen.near || 0) + 1; st.hlStall = 0; $('auto-t').innerHTML = `<span class="why">水が近づいたので、</span>ゆっくり再生中（×${SLOW}）`; }
       else if (t >= st.hl.until) end();
     }
   }
-  cleanups.push(() => clearTimeout(st.hlTimer));
   on('views', 'click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); });
   on('nav-n', 'click', () => rig.north());
   on('nav-home', 'click', () => rig.goHome());
@@ -827,6 +831,8 @@ async function createApp(region, o) {
     world.setMapVisible?.($('tg-map').checked);
     mapLabels?.setVisible($('tg-map').checked);
     $('marks-legend').hidden = !world.marks.visible;
+    $('front-legend').hidden = depth; // the colouring paints over the bright edge line
+    $('tg-marks').disabled = calm(); $('tg-spray').disabled = calm(); // 「動きを減らす」switches both off
     world.uShowTall.value = $('tg-tall').checked ? 1 : 0;
     for (const l of tall.labels) l.visible = $('tg-tall').checked;
   };
@@ -952,9 +958,9 @@ async function createApp(region, o) {
       // first water on land → offer the hazard-map colouring (日向 #5)
       if (!st.toasted && $('toast').hidden && Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity)) && !$('tg-depth').checked) {
         st.toasted = true;
-        $('toast-t').textContent = '陸に水が上がり始めました。深さで色分けすると、どこが何mか分かりやすくなります。';
+        $('toast-t').textContent = (world.marks.visible ? '水の上の細い線＝水の流れ（太く明るい方へ流れています。長いほど速い。線のない所にも水はあります）。' : '') + '水のふちの明るい線＝いまの深さ約5cmの所（その先にも、うすい水があります）。深さで色分けすると、どこが何mか分かります。';
         $('toast').hidden = false;
-        const t = setTimeout(() => { $('toast').hidden = true; }, 8000);
+        const t = setTimeout(() => { $('toast').hidden = true; }, 14000);
         cleanups.push(() => clearTimeout(t));
       }
       pin.set(h, h > 0.01 ? `ここの深さ ${h.toFixed(1)}m` : 'ここ');
@@ -1248,11 +1254,12 @@ async function createApp(region, o) {
     if (outerSolver) { outerSolver.pack(0); world.outerLayer.update(); }
     solver.pack(st.playing ? rdt : 0);
     // flow marks: they travel with the water at the speed it is shown at, capped at ×20 (faster than that the
-    // eye cannot follow a mark; the tail then stands for the same 6 simulated seconds)
+    // eye cannot follow a mark). Their LENGTH is the flow speed × 6 simulated seconds at every playback speed:
+    // it used to shrink to a third at ×5 — in the very moment the slow-down is meant to show (review AB2)
     if (st.playing && rdt > 0) {
       st.eff += (adv / rdt - st.eff) * 0.12;
       const sp = Math.min(st.eff, 20);
-      world.uMark.value.x = THREE.MathUtils.clamp(sp * 0.3, 2, 6);
+      world.uMark.value.x = 6;
       world.uMark.value.y = Math.max(1, sp);
       if (world.marks.visible) solver.marks(rdt, sp * rdt);
     } else world.uMark.value.y = 1; // paused: the ripples idle in real time

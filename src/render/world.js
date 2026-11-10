@@ -305,8 +305,8 @@ export function createWorld(renderer, region, solver, opts = {}) {
   scene.add(spray);
 
   // ── flow marks: thin streaks lying on the water, riding the COMPUTED flow (sim/swe.js markUpdate) ──
-  // bright head → the way the water goes; length → how fast (the distance it travels in uMark.x simulated
-  // seconds). Never round, one colour, only on water: they must not read as debris, foam or waves.
+  // bright head → the way the water goes; length → how fast (the distance it travels in uMark.x = 6 simulated
+  // seconds, whatever the playback speed). Never round, one colour, only on water: they must not read as debris, foam or waves.
   const marks = (() => {
     const n = solver.buffers.FM.value.count;
     const FMr = storage(solver.buffers.FM.value, 'vec4', n).toReadOnly();
@@ -318,23 +318,27 @@ export function createWorld(renderer, region, solver, opts = {}) {
     const head = vec3(p.x, f.z, p.y);
     const dist = length(cameraPosition.sub(head));
     const len = clamp(sp.mul(uMark.x), 2.5, 70);
+    const alive = step(0.25, f.w), overLand = smoothstep(0.5, 1.0, f.w);
     const wid = clamp(dist.mul(0.0030), 0.14, 6);
     const along = uv().x, side = uv().y.sub(0.5);
     const off = dir.mul(len.mul(along.sub(1))).add(vec2(dir.y.negate(), dir.x).mul(side.mul(wid)));
     const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
     // a hair above the surface, more so far away (depth precision), and nothing at all for a resting mark
-    mat.positionNode = vec3(head.x.add(off.x), head.y.add(0.07).add(dist.mul(0.0007)), head.z.add(off.y)).mul(f.w);
+    mat.positionNode = vec3(head.x.add(off.x), head.y.add(0.07).add(dist.mul(0.0007)), head.z.add(off.y)).mul(alive);
     const vA = varying(along, 'vMkA');
     const vS = varying(side, 'vMkS');
     // fade in over the first 0.4 s of its life and out over the last 0.8 s; faint where the water barely moves
-    const life = varying(smoothstep(0, 0.4, p.z).mul(float(1).sub(smoothstep(p.w.sub(0.8), p.w, p.z))).mul(smoothstep(0.12, 0.6, sp)).mul(f.w), 'vMkL');
+    // … fainter over the sea than over flooded land, and gone before a far-away mark shrinks to a dot
+    const life = varying(smoothstep(0, 0.4, p.z).mul(float(1).sub(smoothstep(p.w.sub(0.8), p.w, p.z))).mul(smoothstep(0.12, 0.6, sp)).mul(alive).mul(mix(float(0.5), float(1), overLand)).mul(float(1).sub(smoothstep(1300, 2400, dist))), 'vMkL');
     // near the eye the lines thin out (they must not look like objects in front of the viewer)
     const nearFade = varying(smoothstep(6, 30, dist), 'vMkN');
-    mat.colorNode = vec4(vec3(0.93, 0.97, 1.0), 1);
+    // a very pale blue, not the white of foam and spray
+    mat.colorNode = vec4(vec3(0.80, 0.94, 1.0), 1);
     // a tapering stroke: hair-thin at the tail, full width at the head, and the head itself rounded off
     const half = mix(float(0.12), float(0.5), vA);
     const body = float(1).sub(smoothstep(half.mul(0.55), half, abs(vS)));
-    mat.opacityNode = vA.pow(1.6).mul(float(1).sub(smoothstep(0.9, 1.0, vA))).mul(body).mul(life).mul(nearFade).mul(0.7);
+    // the head is clearly the brightest part (the tail fades away early): the water flows TOWARDS the bright end
+    mat.opacityNode = vA.pow(2.4).mul(float(1).sub(smoothstep(0.93, 1.0, vA))).mul(body).mul(life).mul(nearFade).mul(0.85);
     mat.fog = true;
     const g = new THREE.PlaneGeometry(1, 1);
     g.translate(0.5, 0.5, 0); // uv = position: x 0 (tail) … 1 (head)

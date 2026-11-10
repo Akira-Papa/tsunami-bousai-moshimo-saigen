@@ -530,7 +530,7 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .auto-note button { min-height: 44px; padding: 0 14px; white-space: nowrap; }
 .marks-legend { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-3); }
 .marks-legend[hidden] { display: none; }
-.marks-legend i { display: inline-block; width: 26px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; background: linear-gradient(90deg, rgba(237, 247, 255, 0), #edf7ff); }
+.marks-legend i { display: inline-block; width: 26px; height: 4px; margin-right: 6px; vertical-align: middle; border-radius: 0 2px 2px 0; background: linear-gradient(90deg, rgba(204, 240, 255, 0), #ccf0ff); clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 55%); }
 .marks-legend.front i { height: 0; border-top: 2px solid #eef8f4; background: none; border-radius: 0; opacity: 0.9; }
 
 /* ═════════ 3Dの画面の組み直し（2026-11-10・設計「11」C1・C4・D1'）═════════

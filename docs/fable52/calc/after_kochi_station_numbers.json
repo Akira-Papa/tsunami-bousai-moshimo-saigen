@@ -1,0 +1,142 @@
+{
+  "label": "after_kochi_station",
+  "base": "http://127.0.0.1:5352",
+  "at": "2026-11-10T13:22:27.247Z",
+  "repeat": 1,
+  "speed": 60,
+  "extra": "",
+  "cases": {
+    "custom": {
+      "title": "地点 33.5672,133.5436",
+      "query": "&lat=33.5672&lon=133.5436",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [
+            "script: Waiting failed: 600000ms exceeded"
+          ],
+          "rows": [
+            {
+              "t": 1101.784,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 1.3,
+              "mean": 5.991,
+              "meanMax": 5.991,
+              "front": 2301.5,
+              "breached": 0,
+              "washed": 614,
+              "fps": "55 fps · 格子 1280² · 実効 ×0"
+            },
+            {
+              "t": 1500.362,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 1.3,
+              "mean": 7.028,
+              "meanMax": 7.028,
+              "front": 1391.6,
+              "breached": 0,
+              "washed": 4258,
+              "fps": "42 fps · 格子 1280² · 実効 ×0"
+            }
+          ],
+          "conditions": {
+            "N": 1280,
+            "dx": 2.96875,
+            "L": 3800,
+            "H": 15,
+            "tide": 0,
+            "nested": false,
+            "speed": "auto",
+            "speedUsed": 60
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 1100,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "arr": null,
+          "gain": {
+            "min": 1.3,
+            "max": 1.3,
+            "n": 1
+          },
+          "meanMax": {
+            "min": 5.991,
+            "max": 5.991,
+            "n": 1
+          },
+          "front": {
+            "min": 2301.5,
+            "max": 2301.5,
+            "n": 1
+          }
+        },
+        {
+          "t": 1500,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 1
+          },
+          "arr": null,
+          "gain": {
+            "min": 1.3,
+            "max": 1.3,
+            "n": 1
+          },
+          "meanMax": {
+            "min": 7.028,
+            "max": 7.028,
+            "n": 1
+          },
+          "front": {
+            "min": 1391.6,
+            "max": 1391.6,
+            "n": 1
+          }
+        },
+        {
+          "t": 2400,
+          "h": null,
+          "max": null,
+          "vmax": null,
+          "arr": null,
+          "gain": null,
+          "meanMax": null,
+          "front": null
+        }
+      ]
+    }
+  }
+}
