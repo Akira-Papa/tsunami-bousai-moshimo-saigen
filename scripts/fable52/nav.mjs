@@ -8,6 +8,7 @@
 //   sp     スマホ幅で、3Dの見える面積が60%以上・押す所がすべて44px以上・名前の札が1〜6・地点が隠れていない
 //   sp_inland スマホ幅の内陸（視点が5つ）で、操作がはみ出さない・最初の視点で地点が隠れていない
 //   sp_small  375×667 での見える面積（記録）・はみ出しなし
+//   notice    1回だけ出る通知が、注意の帯・地名の行・欄・ボタンにかからない（390〜1440pxの5つの幅）。【指定】の札が端で切れない
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -280,7 +281,35 @@ async function spSmall() {
   return r; // (the 60 % criterion is for 390×844; here the share is recorded, not judged)
 }
 
-for (const [name, fn] of [['pc', pc], ['inland', inland], ['sp', sp], ['sp_inland', spInland], ['sp_small', spSmall]]) {
+// the one-time notice (water first on land) must not cover the "not a forecast" banner, the place bar, the depth
+// panel or the view buttons — at any width; and the tag of a designated evacuation site is never cut by the edge
+async function notice() {
+  const r = { checks: {}, errors: [], sizes: {} };
+  for (const [w, h] of [[390, 844], [820, 1180], [1024, 768], [1180, 820], [1440, 900]]) {
+    const { browser, page, errors } = await open({ width: w, height: h, deviceScaleFactor: 1, ...(w < 761 ? { isMobile: true, hasTouch: true } : {}) }, '&lat=35.0905&lon=136.8844&n=512');
+    await page.evaluate(() => { document.getElementById('nav-hint').hidden = true; });
+    let t = 0, shown = false;
+    for (let k = 0; k < 40 && !shown; k++) { t = await page.evaluate(async () => { await window.__t.advance(2, 30); return window.__t.app.lead.time; }); shown = await page.evaluate(() => !document.getElementById('toast').hidden); }
+    const m = await page.evaluate(() => {
+      const rc = (q) => { const e = document.querySelector(q); return e && e.offsetParent !== null ? e.getBoundingClientRect() : null; };
+      const hit = (a, b) => !!a && !!b && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      const toast = rc('#toast');
+      const tags = [...document.querySelectorAll('#stage3d .lbl.evacb')].filter((e) => e.style.display !== 'none').map((e) => e.getBoundingClientRect()).filter((b) => b.right > 0 && b.left < innerWidth);
+      return { toast: toast && [Math.round(toast.left), Math.round(toast.top), Math.round(toast.right), Math.round(toast.bottom)], over: ['#sim .badge', '#sim .topbar', '#sim .hud', '#sim .navpad', '#sim .dock'].filter((q) => hit(toast, rc(q))), tagsCut: tags.filter((b) => b.left < 0 || b.right > innerWidth).length, tags: tags.length };
+    });
+    await page.screenshot({ path: path.join(OUT, `notice_${w}.jpg`), type: 'jpeg', quality: 80 });
+    r.sizes[w] = { t: Math.round(t), shown, ...m };
+    r.errors.push(...errors);
+    await browser.close();
+  }
+  r.checks.noticeShown = Object.values(r.sizes).every((x) => x.shown);
+  r.checks.noticeCoversNothing = Object.values(r.sizes).every((x) => x.over.length === 0);
+  r.checks.evacTagNotCut = Object.values(r.sizes).every((x) => x.tagsCut === 0);
+  r.checks.noErrors = r.errors.length === 0;
+  return r;
+}
+
+for (const [name, fn] of [['pc', pc], ['inland', inland], ['sp', sp], ['sp_inland', spInland], ['sp_small', spSmall], ['notice', notice]]) {
   if (ONLY.length && !ONLY.includes(name)) continue;
   let r;
   try { r = await fn(); } catch (e) { r = { checks: { ran: false }, errors: ['script: ' + e.message.slice(0, 300)] }; }

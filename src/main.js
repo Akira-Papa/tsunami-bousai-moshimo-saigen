@@ -930,14 +930,15 @@ async function createApp(region, o) {
     const add = (line) => (ev ? (wet ? (ev.short ? `${line}（${ev.short}）` : line) : (innerWidth <= 760 && ev.short ? ev.short : ev.text)) : line);
     if (tt < 0) return [add('沖はまだ静かです'), 'calm'];
     const trapped = pinGround < 0.3 && st.arrived != null;
+    // the moment it arrives is said as such for a minute of the run, whatever the stage (Nagoya: it arrives
+    // during 「続く」; a low place far from the sea may be reached only while the sea already falls)
+    if (wet && st.arrived != null && t < st.arrived + 60) return [add(`ここに水が来ました（深さ${h.toFixed(1)}m）`), 'arrived'];
+    const narrow = innerWidth <= 760;
     if (tt >= w.rise + w.hold) {
       if (trapped) return [add(`海は下がっても、ここの水は残ります${wet ? `（深さ${h.toFixed(1)}m）` : ''}`), 'trapped'];
-      return [add(`水が海へ戻っています（引く水も強く、危険です）${wet ? `。${deep}` : ''}`), 'back'];
+      return [add(`${narrow ? '水が引いています' : '水が海へ戻っています'}（引く水も強く、危険です）${wet ? `。${deep}` : ''}`), 'back'];
     }
     if (wet) {
-      // the moment it arrives is said as such for a minute of the run, whatever the stage (Nagoya: it arrives
-      // during 「続く」, and the line used to say only "the high level continues")
-      if (st.arrived != null && t < st.arrived + 60) return [add(`ここに水が来ました（深さ${h.toFixed(1)}m）`), 'arrived'];
       return [add(tt < w.rise ? `水が上がっています。${deep}` : `高い水位が続いています（仮定）。${deep}`), tt < w.rise ? 'wet-rise' : 'wet-hold'];
     }
     if (ev) return [innerWidth <= 760 && ev.short ? ev.short : ev.text, 'ev:' + ev.text];
@@ -1281,7 +1282,7 @@ async function createApp(region, o) {
         if (!l.visible) continue;
         tmpV.copy(l.position).project(camera);
         const x = (tmpV.x * 0.5 + 0.5) * innerWidth, w = l.element.offsetWidth || 220;
-        l.center.x = x - w / 2 < 6 ? Math.max(0, Math.min(0.5, (x - 6) / w)) : x + w / 2 > innerWidth - 6 ? Math.min(1, Math.max(0.5, 1 - (innerWidth - 6 - x) / w)) : 0.5;
+        l.center.x = x < -160 || x > innerWidth + 160 ? 0.5 : x - w / 2 < 6 ? Math.min(0.5, (x - 6) / w) : x + w / 2 > innerWidth - 6 ? Math.max(0.5, 1 - (innerWidth - 6 - x) / w) : 0.5;
       }
       $('nav-needle').style.transform = `rotate(${(-rig.azimuth()).toFixed(3)}rad)`;
       if (mapLabels && $('tg-map').checked) {
@@ -1392,6 +1393,7 @@ function onResize() {
 }
 addEventListener('resize', onResize);
 // the height of the dock, for the things that must stay clear of it (toast, side panel)
+if ('ResizeObserver' in window) new ResizeObserver(() => app?.compose()).observe(document.querySelector('#sim .hud'));
 if ('ResizeObserver' in window) new ResizeObserver(() => { $('sim').style.setProperty('--dock-h', `${Math.ceil(document.querySelector('.dock').getBoundingClientRect().height)}px`); app?.compose(); }).observe(document.querySelector('.dock'));
 // keep the dock above the (possibly two-line) credit
 {

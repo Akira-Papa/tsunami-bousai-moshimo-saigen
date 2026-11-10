@@ -665,3 +665,5 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 @media (min-width: 761px) { .toast, #sim .toast { top: 76px; bottom: auto; } }
 #sim .seg button { padding: 8px 8px; }
 @media (min-width: 761px) { #sim .seg button { padding: 8px 6px; font-size: 12.5px; } }
+/* 通知（761〜1230px）：上の注意の帯と右の欄にかからないよう、帯の下・欄の左に置く */
+@media (min-width: 761px) and (max-width: 1230px) { .toast, #sim .toast { top: 128px; left: 16px; right: 312px; transform: none; width: auto; max-width: none; } }

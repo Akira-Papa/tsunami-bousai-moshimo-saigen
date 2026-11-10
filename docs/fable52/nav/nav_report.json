@@ -1,6 +1,6 @@
 {
  "base": "http://127.0.0.1:5341",
- "at": "2026-11-10T14:15:37.845Z",
+ "at": "2026-11-10T14:44:36.138Z",
  "cases": {
   "pc": {
    "checks": {
@@ -22,7 +22,7 @@
    "start": {
     "pinPx": [
      572,
-     406
+     388
     ],
     "pinInFront": true,
     "targetFromPin": 0,
@@ -45,7 +45,7 @@
    "wheelIn": {
     "pinPx": [
      572,
-     406
+     388
     ],
     "pinInFront": true,
     "targetFromPin": 0,
@@ -60,7 +60,7 @@
    "wheelOut": {
     "pinPx": [
      572,
-     406
+     388
     ],
     "pinInFront": true,
     "targetFromPin": 0,
@@ -80,7 +80,7 @@
    "afterPan": {
     "pinPx": [
      165,
-     34
+     16
     ],
     "pinInFront": true,
     "targetFromPin": 600,
@@ -95,7 +95,7 @@
    "home": {
     "pinPx": [
      572,
-     406
+     388
     ],
     "pinInFront": true,
     "targetFromPin": 0,
@@ -111,7 +111,7 @@
     "movingBefore": true,
     "movingAfter": false,
     "azBefore": 108,
-    "azAfter": -166.6
+    "azAfter": -166.7
    },
    "coast": {
     "turned": 160.2,
@@ -145,7 +145,7 @@
    "errors": [],
    "pinInWide": {
     "x": 572,
-    "y": 621,
+    "y": 603,
     "free": true
    },
    "labelsWide": {
@@ -155,7 +155,6 @@
      "亀島駅",
      "本陣駅",
      "浅間町駅",
-     "栄生駅",
      "山王駅",
      "中村公園駅",
      "久屋大通駅",
@@ -163,7 +162,8 @@
      "矢場町駅",
      "尾頭橋駅",
      "岩塚駅",
-     "小本駅"
+     "小本駅",
+     "東別院駅"
     ]
    },
    "blackWide": 0,
@@ -228,7 +228,7 @@
    "errors": [],
    "pinInWide": {
     "x": 195,
-    "y": 591,
+    "y": 599,
     "free": true
    },
    "overflow": [],
@@ -238,10 +238,10 @@
     "names": [
      "亀島駅",
      "栄生駅",
-     "東枇杷島駅",
      "栄駅",
      "名古屋城駅",
-     "尾頭橋駅"
+     "尾頭橋駅",
+     "岩塚駅"
     ]
    }
   },
@@ -258,8 +258,84 @@
    },
    "pinFree": {
     "x": 188,
-    "y": 349,
+    "y": 357,
     "free": true
+   }
+  },
+  "notice": {
+   "checks": {
+    "noticeShown": true,
+    "noticeCoversNothing": true,
+    "evacTagNotCut": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "sizes": {
+    "390": {
+     "t": 41,
+     "shown": true,
+     "toast": [
+      8,
+      192,
+      382,
+      307
+     ],
+     "over": [],
+     "tagsCut": 0,
+     "tags": 1
+    },
+    "820": {
+     "t": 41,
+     "shown": true,
+     "toast": [
+      16,
+      128,
+      508,
+      222
+     ],
+     "over": [],
+     "tagsCut": 0,
+     "tags": 1
+    },
+    "1024": {
+     "t": 41,
+     "shown": true,
+     "toast": [
+      16,
+      128,
+      712,
+      203
+     ],
+     "over": [],
+     "tagsCut": 0,
+     "tags": 1
+    },
+    "1180": {
+     "t": 41,
+     "shown": true,
+     "toast": [
+      16,
+      128,
+      868,
+      190
+     ],
+     "over": [],
+     "tagsCut": 0,
+     "tags": 1
+    },
+    "1440": {
+     "t": 41,
+     "shown": true,
+     "toast": [
+      400,
+      76,
+      1040,
+      151
+     ],
+     "over": [],
+     "tagsCut": 0,
+     "tags": 1
+    }
    }
   }
  }

@@ -91,7 +91,8 @@ export function topHtml(cur) {
     const weak = a?.n && (a.max < 0.3 || (a.max < 1 && a.edge >= 100));
     state = `<b class="notsafe">安全という意味ではありません。</b>${!a?.n ? 'ほかのケースや、堤防が早く壊れる場合には、浸水することがあります。'
       : weak ? `${edgeJa(a.edge)}最大 ${a.max.toFixed(1)}m の浸水の想定があります（ケース01だけの値で、備えの上限ではありません）。`
-        : `${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えは、少なくともこの深さで）。`}`;
+        : `${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えは、少なくともこの深さで）。`}`
+      + (o.partial ? '周りの公式データの一部を取得できませんでした。周りに、ここに出ていない浸水の想定があるかもしれません。' : '');
   } else if (o.state === 'outside') {
     off = 'この地点は、収録している公式データの範囲の外です';
     state = '<b class="notsafe">「浸水しない」という意味ではありません。</b>自治体のハザードマップで確かめてください。';
