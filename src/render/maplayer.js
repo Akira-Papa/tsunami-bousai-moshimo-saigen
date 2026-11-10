@@ -10,6 +10,7 @@ import { ROAD_WIDTH_M } from '../data/mapextra.js';
  * Only the alpha matters. Wide roads first, so narrow lanes stay visible where they meet.
  */
 export function roadCanvas(roads, L, size = 2048) {
+  if (!roads.length) size = 4; // nothing to draw (no data): no 16 MB canvas for it
   const cv = new OffscreenCanvas(size, size);
   const g = cv.getContext('2d');
   g.clearRect(0, 0, size, size);
@@ -39,7 +40,7 @@ const KIND_RANGE = { st: 4000, sc: 1800, pub: 1500, tw: 1100 };
  * @param list   [{ name, kind, rank, x, z }] in local metres
  * @param o      { groundAt(x, z), pin: { x, z }, half (m: labels outside ±half are dropped), max }
  */
-export function createMapLabels(list, { groundAt, pin, half, max = 12 }) {
+export function createMapLabels(list, { groundAt, pin, half, max = 12, topAt = null, farScale = 1 }) {
   const group = new THREE.Group();
   const items = list
     .filter((l) => Math.abs(l.x) < half && Math.abs(l.z) < half)
@@ -51,7 +52,8 @@ export function createMapLabels(list, { groundAt, pin, half, max = 12 }) {
       el.className = `lbl mp ${KIND_CLASS[l.kind] ?? 'mp-tw'}`;
       el.textContent = l.name;
       const o = new CSS2DObject(el);
-      o.position.set(l.x, groundAt(l.x, l.z) + (l.kind === 'st' ? 14 : 8), l.z);
+      // on top of the building it stands in (a name half-way up a wall reads as the name of the tower in front)
+      o.position.set(l.x, Math.max(groundAt(l.x, l.z) + (l.kind === 'st' ? 14 : 8), (topAt?.(l.x, l.z) ?? -1e9) + 5), l.z);
       o.visible = false;
       group.add(o);
       // rough footprint on screen (12 px type, 8 px padding each side) — measuring the DOM every time is too slow
@@ -63,15 +65,15 @@ export function createMapLabels(list, { groundAt, pin, half, max = 12 }) {
     group, count: items.length,
     setVisible(on) { shown = on; if (!on) for (const it of items) it.o.visible = false; },
     /** call every few frames. `keep` = screen rectangles [x0, y0, x1, y1] the labels must stay clear of */
-    update(camera, W, H, keep = []) {
+    update(camera, W, H, keep = [], limit = max) {
       if (!shown) return;
       const taken = keep.slice();
       let n = 0;
       for (const it of items) {
-        let ok = n < max;
+        let ok = n < limit;
         if (ok) {
           const dist = camera.position.distanceTo(it.o.position);
-          ok = dist < (KIND_RANGE[it.kind] ?? 1000) && dist > 25;
+          ok = dist < (KIND_RANGE[it.kind] ?? 1000) * (it.far || it.kind === 'st' ? farScale : 1) && dist > 25;
         }
         if (ok) {
           v.copy(it.o.position).project(camera);
@@ -115,8 +117,9 @@ export function createBeacon(ground, height = 80) {
     group: g,
     /** dist = camera → point (m). Near the point the pole and its labels do the job: the column fades out */
     update(dist) {
-      const r = THREE.MathUtils.clamp(dist * 0.0022, 0.35, 9);
-      col.scale.set(r, 1, r);
+      // thin and tall from far away: the height grows with the distance too (80 m is a stub from 4 km)
+      const r = THREE.MathUtils.clamp(dist * 0.0022, 0.35, 30), sy = THREE.MathUtils.clamp((dist * 0.14) / height, 1, 40);
+      col.scale.set(r, sy, r); col.position.y = (height * sy) / 2;
       const rr = THREE.MathUtils.clamp(dist * 0.02, 4, 60);
       ring.scale.set(rr, rr, 1);
       g.visible = dist > 70;

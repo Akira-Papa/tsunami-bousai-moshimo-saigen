@@ -164,11 +164,13 @@
       <div class="now">
         <button id="play" class="primary round" aria-label="再生">▶</button>
         <div class="now-main">
-          <p id="now-line" class="now-line" role="status" aria-live="polite">まもなく、仮定の津波が動き出します</p>
+          <p id="now-line" class="now-line">まもなく、仮定の津波が動き出します</p>
+          <p id="now-live" class="sr-only" role="status" aria-live="polite"></p>
           <div class="band" id="band" role="img" aria-label="再現の進み具合（静か・上がる・続く・引く の4つの段階。長さは時間ではありません）">
             <i>静か</i><i>上がる</i><i>続く（仮定）</i><i>引く</i><b id="band-pos"></b>
           </div>
-          <p class="clockline"><span class="k">再現の時計</span> <output id="clock">00:00</output> <small class="clock-note">（実際の時刻ではありません）</small><span id="phase" class="sr-only">待機</span></p>
+          <span id="band-name" class="band-name" aria-hidden="true">いま：静か</span>
+          <p class="clockline"><span class="k">再現の時計</span> <output id="clock">00:00</output> <small class="clock-note">計算の始まりからの時間です。<b>実際に津波が来る時刻ではありません。</b></small><span id="phase" class="sr-only">待機</span></p>
         </div>
         <label class="speed-sel"><span>速さ</span>
           <select id="speed-sel" aria-label="再生の速さ">
@@ -179,12 +181,12 @@
       </div>
       <div class="ctl">
         <div class="seg" id="speeds" role="group" aria-label="再生の速さ">
-          <button data-s="auto" class="on">おまかせ</button><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="999" class="fastest" title="一気に終わりまで進めます">最速</button>
+          <button data-s="auto" class="on" title="ふだんは×20（内陸は×60）。水が陸に上がる所は、自動でゆっくり（×5）にします">おまかせ</button><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="999" class="fastest" title="一気に終わりまで進めます">最速</button>
         </div>
         <div class="seg" id="views" role="group" aria-label="視点">
-          <button data-v="wide" hidden>海からここまで</button><button data-v="over" class="on">地点と海</button><button data-v="pin">ここの近く</button><button data-v="eye">立って見る</button><button data-v="impact">海側の建物</button>
+          <button data-v="wide" hidden><span class="vl">海からここまで</span><span class="vs">海から</span></button><button data-v="over" class="on">地点と海</button><button data-v="pin">ここの近く</button><button data-v="eye">立って見る</button><button data-v="impact">海側の建物</button>
         </div>
-        <button type="button" id="disp-btn" class="ghost small disp-btn" aria-expanded="false" aria-controls="disp">表示 ▾</button>
+        <button type="button" id="disp-btn" class="ghost small disp-btn" aria-expanded="false" aria-controls="disp" aria-label="表示の切りかえ">表示 <span aria-hidden="true">▾</span></button>
       </div>
       <p id="auto-note" class="auto-note" hidden role="status"><span id="auto-t"></span><button id="auto-keep" class="ghost small"></button></p>
       <div id="disp" class="disp" hidden>
@@ -206,7 +208,7 @@
     </div>
     <div class="navpad" role="group" aria-label="3Dの視点を動かす">
       <button type="button" id="nav-n" class="navbtn" aria-label="北を上にする" title="北を上にする（N）"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g id="nav-needle"><path d="M12 3l4 9h-8z" fill="#ff6a57"/><path d="M12 21l-4-9h8z" fill="#cfd8df"/></g></svg><span>北</span></button>
-      <button type="button" id="nav-home" class="navbtn" aria-label="選んだ地点へ戻る" title="選んだ地点へ戻る（0）">◎</button>
+      <button type="button" id="nav-home" class="navbtn" aria-label="選んだ地点へ戻る" title="選んだ地点へ戻る（0）。海側の建物・海からここまで の視点では、「ここの近く」に変わります">◎<span>戻る</span></button>
       <button type="button" id="nav-in" class="navbtn pc" aria-label="近づく" title="近づく（＋）">＋</button>
       <button type="button" id="nav-out" class="navbtn pc" aria-label="離れる" title="離れる（−）">−</button>
     </div>

@@ -77,14 +77,21 @@ export function topHtml(cur) {
   if (!o) off = '確認中…';
   else if (o.state === 'hit') {
     const c = o.cell, a = o.around, deeper = a?.n && a.max > c.depth + 0.05;
-    off = `ここ <b>${c.depth.toFixed(1)}m</b>${deeper ? `／周り${a.R}m以内 <b class="deep">${a.max.toFixed(1)}m</b><small>備えは深いほうで</small>` : ''}`;
+    off = `ここ <b>${c.depth.toFixed(1)}m</b>${deeper ? `／周り${a.R}m以内 <b class="deep">${a.max.toFixed(1)}m</b><small>備えは深いほうで</small>` : ''}`
+      // the same caveats as the full section below: they belong to this very figure
+      + (deeper && !a.landOnly ? '<small class="cav">周りの値は、海や川の水面にかかる所を含むことがあります</small>' : '')
+      + (o.partial ? '<small class="cav">周りの公式データの一部を取得できませんでした。周りの最大は、これより深いことがあります</small>' : '');
     state = c.arrival != null && Number.isFinite(c.arrival)
       ? `${arrivalSentence(c.arrival)}<b class="notsafe">逃げるまでの猶予の時間ではありません。</b>`
       : esc(depthSay(Math.max(c.depth, deeper ? a.max : 0))[0]);
   } else if (o.state === 'none') {
     const a = o.around;
     off = 'この100m四方に、浸水のセルはありません';
-    state = `<b class="notsafe">安全という意味ではありません。</b>${a?.n ? `${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m）。` : 'ほかのケースや、堤防が早く壊れる場合には、浸水することがあります。'}`;
+    // (a shallow or distant neighbour is not a figure to prepare for — the same rule as the full section below)
+    const weak = a?.n && (a.max < 0.3 || (a.max < 1 && a.edge >= 100));
+    state = `<b class="notsafe">安全という意味ではありません。</b>${!a?.n ? 'ほかのケースや、堤防が早く壊れる場合には、浸水することがあります。'
+      : weak ? `${edgeJa(a.edge)}最大 ${a.max.toFixed(1)}m の浸水の想定があります（ケース01だけの値で、備えの上限ではありません）。`
+        : `${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えは、少なくともこの深さで）。`}`;
   } else if (o.state === 'outside') {
     off = 'この地点は、収録している公式データの範囲の外です';
     state = '<b class="notsafe">「浸水しない」という意味ではありません。</b>自治体のハザードマップで確かめてください。';
@@ -95,9 +102,9 @@ export function topHtml(cur) {
   const n = cur.info ? caseNote(cur.info.row) : null;
   const caseWarn = n?.lower ? `<p class="bt-state warnish"><b>ケース01は、この地域で津波が最も高くなるケースではありません</b>（11ケースの最大は${n.max}m）。浸水は、ここの値より深く・広くなることがあります。</p>` : '';
   let near;
-  if (!ev) near = '逃げる場所を確認中…';
-  else if (ev.status === 'failed') near = '<b class="notsafe">逃げる場所のデータを取得できませんでした。「近くにない」という意味ではありません。</b>';
-  else if (!ev.sites.length) near = '1km以内に、津波の指定緊急避難場所は見つかりませんでした。<b class="notsafe">「逃げる場所がない」という意味ではありません。</b>';
+  if (!ev) near = '<span>逃げる場所を確認中…</span>';
+  else if (ev.status === 'failed') near = '<span><b class="notsafe">逃げる場所のデータを取得できませんでした。「近くにない」という意味ではありません。</b></span>';
+  else if (!ev.sites.length) near = '<span>1km以内に、津波の指定緊急避難場所は見つかりませんでした。<b class="notsafe">「逃げる場所がない」という意味ではありません。</b>近くの高い所への道のりは、下の「逃げる道のり」にあります。</span>';
   else {
     // the nearest by road when the road distances have arrived, otherwise the nearest in a straight line
     let i = 0, d = ev.sites[0].d, road = false;

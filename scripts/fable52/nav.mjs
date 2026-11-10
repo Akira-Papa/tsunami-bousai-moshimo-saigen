@@ -5,7 +5,9 @@
 //          視点の切り替え中のドラッグが効く／「地点へ戻る」「北が上」「矢印キー」「＋−」が効く／
 //          いちばん引いても黒い画素がない／名前の札が重ならずに出る／回して離したあと、すぐ止まる
 //   inland 内陸（二段の計算）で「名古屋駅」の札が出る／広い視点でも黒い画素がない
-//   sp     スマホ幅で、3Dの見える面積が60%以上・押す所がすべて44px以上
+//   sp     スマホ幅で、3Dの見える面積が60%以上・押す所がすべて44px以上・名前の札が1〜6・地点が隠れていない
+//   sp_inland スマホ幅の内陸（視点が5つ）で、操作がはみ出さない・最初の視点で地点が隠れていない
+//   sp_small  375×667 での見える面積（記録）・はみ出しなし
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -57,6 +59,14 @@ const black = (page) => page.evaluate(async () => {
   let n = 0;
   for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] < 24) n++;
   return Math.round((n / (w * h)) * 10000) / 100;
+});
+// the chosen point is on screen AND not under a panel (what lies at its pixel is the 3-D view or one of its labels)
+const pinFree = (page) => page.evaluate(() => {
+  const a = window.__t.app, T = window.__t.THREE;
+  const v = new T.Vector3(a.pin.x, a.pin.ground + 2, a.pin.z).project(a.camera);
+  const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
+  const el = v.z < 1 && x > 0 && y > 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+  return { x: Math.round(x), y: Math.round(y), free: !!el && (el.tagName === 'CANVAS' || !!el.closest('#stage3d')) };
 });
 const labelsNow = (page) => page.evaluate(() => {
   const els = [...document.querySelectorAll('#stage3d .lbl.mp')].filter((e) => e.style.display !== 'none' && e.offsetParent !== null);
@@ -171,6 +181,10 @@ async function pc() {
 async function inland() {
   const { browser, page, errors } = await open({ width: 1440, height: 900, deviceScaleFactor: 1 }, '&lat=35.1709&lon=136.8815&n=512');
   const r = { checks: {}, errors };
+  await page.evaluate(() => { document.getElementById('nav-hint').hidden = true; document.getElementById('toast').hidden = true; });
+  r.pinInWide = await pinFree(page);
+  r.labelsWide = await labelsNow(page);
+  r.checks.pinVisibleInFirstView = r.pinInWide.free;
   r.blackWide = await black(page);
   await page.screenshot({ path: path.join(OUT, 'inland_wide.jpg'), type: 'jpeg', quality: 84 });
   for (let i = 0; i < 200; i++) { await page.mouse.move(520, 300); await page.mouse.wheel({ deltaY: 120 }); if (i % 20 === 19) await sleep(60); }
@@ -216,15 +230,57 @@ async function sp() {
   await page.evaluate(() => document.getElementById('disp-btn').click()); await sleep(300);
   r.withSwitches = await measure();
   await page.screenshot({ path: path.join(OUT, 'sp_switches.jpg'), type: 'jpeg', quality: 84 });
+  // names on the phone: at least one, at most six, in the first view or the close one
+  await page.evaluate(() => document.getElementById('disp-btn').click()); await sleep(300);
+  const lab = [];
+  for (const v of ['over', 'pin']) { await page.evaluate((view) => window.__t.app.setView(view, true), v); await sleep(700); lab.push((await labelsNow(page)).n); }
+  r.labelsOverPin = lab;
+  r.pinFree = await pinFree(page);
+  r.checks.labelsAtMost6 = Math.max(...lab) <= 6; // (this pier has few named places: the count is recorded; 1–6 is judged inland)
+  r.checks.pinVisible = r.pinFree.free;
   r.checks.free60 = r.before.free >= 60 && r.running.free >= 60;
   r.checks.targets44 = r.before.small.length === 0 && r.running.small.length === 0 && r.withSwitches.small.length === 0;
-  r.checks.labelsAtMost6 = r.running.labels <= 6;
   r.checks.noErrors = errors.length === 0;
   await browser.close();
   return r;
 }
 
-for (const [name, fn] of [['pc', pc], ['inland', inland], ['sp', sp]]) {
+async function spInland() {
+  const { browser, page, errors } = await open({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, '&lat=35.1709&lon=136.8815&n=512');
+  const r = { checks: {}, errors };
+  await page.evaluate(() => { document.getElementById('nav-hint').hidden = true; document.getElementById('toast').hidden = true; });
+  r.pinInWide = await pinFree(page);
+  r.overflow = await page.evaluate(() => [...document.querySelectorAll('#sim .dock button, #sim .dock select')].filter((e) => e.offsetParent !== null).map((e) => { const b = e.getBoundingClientRect(); return { id: e.id || e.textContent.trim().slice(0, 8), l: Math.round(b.left), r: Math.round(b.right) }; }).filter((b) => b.l < 0 || b.r > innerWidth));
+  r.labels = await labelsNow(page);
+  await page.screenshot({ path: path.join(OUT, 'sp_inland_wide.jpg'), type: 'jpeg', quality: 84 });
+  r.checks.pinVisibleInFirstView = r.pinInWide.free;
+  r.checks.labels1to6 = r.labels.n >= 1 && r.labels.n <= 6;
+  r.checks.noOverflow = r.overflow.length === 0;
+  r.checks.noErrors = errors.length === 0;
+  await browser.close();
+  return r;
+}
+async function spSmall() {
+  const { browser, page, errors } = await open({ width: 375, height: 667, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, '&lat=35.0905&lon=136.8844&n=512');
+  const r = { checks: {}, errors };
+  await page.evaluate(() => { document.getElementById('nav-hint').hidden = true; });
+  r.m = await page.evaluate(() => {
+    const W = innerWidth, H = innerHeight, step = 4, sim = document.getElementById('sim');
+    let free = 0, all = 0;
+    for (let y = step / 2; y < H; y += step) for (let x = step / 2; x < W; x += step) { all++; const el = document.elementFromPoint(x, y); if (el && (el.tagName === 'CANVAS' || el.id === 'stage3d' || el.closest('#stage3d') || el === sim)) free++; }
+    const over = [...document.querySelectorAll('#sim .dock button, #sim .dock select')].filter((e) => e.offsetParent !== null).filter((e) => { const b = e.getBoundingClientRect(); return b.left < 0 || b.right > W; }).length;
+    return { free: Math.round((free / all) * 1000) / 10, overflow: over };
+  });
+  r.pinFree = await pinFree(page);
+  await page.screenshot({ path: path.join(OUT, 'sp_small_start.jpg'), type: 'jpeg', quality: 84 });
+  r.checks.noOverflow = r.m.overflow === 0;
+  r.checks.pinVisible = r.pinFree.free;
+  r.checks.noErrors = errors.length === 0;
+  await browser.close();
+  return r; // (the 60 % criterion is for 390×844; here the share is recorded, not judged)
+}
+
+for (const [name, fn] of [['pc', pc], ['inland', inland], ['sp', sp], ['sp_inland', spInland], ['sp_small', spSmall]]) {
   if (ONLY.length && !ONLY.includes(name)) continue;
   let r;
   try { r = await fn(); } catch (e) { r = { checks: { ran: false }, errors: ['script: ' + e.message.slice(0, 300)] }; }

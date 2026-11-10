@@ -35,15 +35,15 @@ export function createCameraRig(o) {
   const tmp = new THREE.Vector3(), off = new THREE.Vector3();
 
   // the user's hand always wins over a running view change
+  // (OrbitControls fires 'start' for a drag, a touch and a wheel that really zooms — nothing else stops a move)
   const onStart = () => { anim = null; };
   controls.addEventListener('start', onStart);
-  const onWheel = () => { anim = null; };
-  dom.addEventListener('wheel', onWheel, { passive: true });
 
   function setLook(on) {
     look = on;
-    if (on) { controls.minDistance = 0.5; controls.maxDistance = 0.5; controls.enablePan = false; controls.rotateSpeed = -0.35; }
-    else { controls.minDistance = 8; controls.maxDistance = o.maxDistance; controls.enablePan = true; controls.rotateSpeed = 1; }
+    if (on) { controls.minDistance = 0.5; controls.maxDistance = 0.5; controls.enablePan = false; controls.enableZoom = false; controls.rotateSpeed = -0.35; }
+    else { controls.minDistance = 8; controls.maxDistance = o.maxDistance; controls.enablePan = true; controls.enableZoom = true; controls.rotateSpeed = 1; }
+    o.onLook?.(on);
   }
 
   function moveTo(pos, target, instant, seconds = 1.2) {
@@ -57,13 +57,16 @@ export function createCameraRig(o) {
     viewName = name;
     center = v.center ?? home; panR = v.panR ?? o.panR;
     if (v.look) {
-      // look mode: the target sits half a metre in front of the eyes, so a drag turns the head
+      // look mode: the target sits half a metre in front of the eyes, so a drag turns the head.
+      // Into and out of it is a cut, not a flight: the distance limits of the two modes cannot be blended
+      // (the first frame of a flight snapped the camera to 0.5 m — or 8 m — from the pivot)
       const dir = tmp.copy(v.target).sub(v.pos).normalize();
       setLook(true);
-      moveTo(v.pos, v.pos.clone().addScaledVector(dir, 0.5), instant);
+      moveTo(v.pos, v.pos.clone().addScaledVector(dir, 0.5), true);
     } else {
+      const wasLook = look;
       setLook(false);
-      moveTo(v.pos, v.target, instant);
+      moveTo(v.pos, v.target, instant || wasLook);
     }
     o.onView?.(name);
   }
@@ -90,8 +93,16 @@ export function createCameraRig(o) {
     if (anim) {
       anim.t = Math.min(1, anim.t + rdt / anim.T);
       const e = anim.t * anim.t * (3 - 2 * anim.t);
-      camera.position.lerpVectors(anim.p0, anim.p1, e);
-      controls.target.lerpVectors(anim.t0, anim.t1, e);
+      if (anim.turn != null) {
+        // around the vertical axis through the pivot (look mode: through the eyes), by the share of the angle due
+        const pivot = look ? camera.position : controls.target, moved = look ? controls.target : camera.position;
+        off.copy(moved).sub(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -anim.turn * (e - anim.e));
+        moved.copy(pivot).add(off);
+        anim.e = e;
+      } else {
+        camera.position.lerpVectors(anim.p0, anim.p1, e);
+        controls.target.lerpVectors(anim.t0, anim.t1, e);
+      }
       if (anim.t >= 1) anim = null;
     }
     controls.update();
@@ -103,16 +114,16 @@ export function createCameraRig(o) {
   const azimuth = () => { off.copy(controls.target).sub(camera.position); return Math.atan2(off.x, -off.z); };
   /** turn the view by `rad` around the pivot (positive = the camera looks further to the right) */
   function turn(rad, animate = true) {
-    if (look) { // turn the head in place
-      off.copy(controls.target).sub(camera.position).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -rad);
-      moveTo(camera.position, camera.position.clone().add(off), !animate, 0.35);
+    if (!animate || reduceMotion) {
+      const pivot = look ? camera.position : controls.target, moved = look ? controls.target : camera.position;
+      off.copy(moved).sub(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -rad);
+      moved.copy(pivot).add(off); controls.update(); anim = null;
       return;
     }
-    off.copy(camera.position).sub(controls.target).applyAxisAngle(THREE.Object3D.DEFAULT_UP, -rad);
-    moveTo(controls.target.clone().add(off), controls.target, !animate, 0.35);
+    anim = { t: 0, T: Math.min(0.9, 0.35 + Math.abs(rad) * 0.2), turn: rad, e: 0 };
   }
   /** north up: the same distance and height, seen from the south */
-  function north() { let a = azimuth(); if (a > Math.PI) a -= 2 * Math.PI; turn(-a); }
+  function north() { turn(-azimuth()); } // azimuth() is within ±π: the short way round
   /** bring the pivot back to the chosen point, keeping the direction and distance of the view */
   function goHome() {
     if (look || center !== home) { setView(o.homeView ?? 'pin'); return; }
@@ -145,7 +156,7 @@ export function createCameraRig(o) {
     else if (k === 'ArrowRight') pan(0.12, 0);
     else if (k === 'ArrowUp') pan(0, 0.12);
     else if (k === 'ArrowDown') pan(0, -0.12);
-    else if (k === '+' || k === ';' || k === '=') zoom(0.8);
+    else if (k === '+' || k === '=' || (k === ';' && e.shiftKey)) zoom(0.8);
     else if (k === '-' || k === '_') zoom(1.25);
     else if (k === 'q' || k === 'Q') turn(-Math.PI / 12);
     else if (k === 'e' || k === 'E') turn(Math.PI / 12);
@@ -163,7 +174,6 @@ export function createCameraRig(o) {
     get view() { return viewName; }, get moving() { return !!anim; }, get looking() { return look; },
     dispose() {
       controls.removeEventListener('start', onStart);
-      dom.removeEventListener('wheel', onWheel);
       dom.removeEventListener('keydown', onKey);
       dom.removeEventListener('dblclick', onDbl);
       controls.dispose();

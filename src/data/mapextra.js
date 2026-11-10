@@ -47,7 +47,9 @@ export function tileMapExtra(buf, t, frame) {
     for (let i = 0; i < rd.length; i++) {
       const f = rd.feature(i), p = f.properties;
       if (f.type !== 2 || !(p.ftCode >= 2700 && p.ftCode < 2800)) continue;
-      const w = Math.max(0, Math.min(4, Number(p.rnkWidth ?? 1)));
+      // 0–4 are the published width classes; anything else (missing, "unknown") is drawn as a narrow road
+      const rw = Number(p.rnkWidth);
+      const w = Number.isInteger(rw) && rw >= 0 && rw <= 4 ? rw : 1;
       for (const line of f.loadGeometry()) {
         if (line.length < 2) continue;
         out.roads.push({ w, pts: line.map((q) => local(q, rd.extent)) });

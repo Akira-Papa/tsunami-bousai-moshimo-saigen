@@ -59,6 +59,7 @@ document.addEventListener('click', (e) => {
   if (!a) return;
   e.preventDefault();
   document.querySelector(a.getAttribute('href'))?.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+  if (a.id === 'bt-more') document.getElementById('brief-h')?.focus({ preventScroll: true });
 });
 function setGpuUi(why = null) {
   $('gpu-note').hidden = gpuOk;
@@ -256,7 +257,7 @@ function updateCond() {
 }
 // the display switches start folded on every screen: the 3-D view comes first (the legend of a new mark is
 // said once in the status line when it first appears)
-const setDisp = (open) => { $('disp').hidden = !open; $('disp-btn').setAttribute('aria-expanded', String(open)); $('disp-btn').textContent = open ? '表示 ▴' : '表示 ▾'; };
+const setDisp = (open) => { $('disp').hidden = !open; $('disp-btn').setAttribute('aria-expanded', String(open)); $('disp-btn').lastElementChild.textContent = open ? '▴' : '▾'; };
 setDisp(false);
 $('disp-btn').addEventListener('click', () => setDisp($('disp').hidden));
 $('hud-more').addEventListener('click', () => {
@@ -315,6 +316,7 @@ if (gpuOk) {
     labels = new CSS2DRenderer();
     labels.setSize(innerWidth, innerHeight);
     Object.assign(labels.domElement.style, { position: 'absolute', inset: '0', pointerEvents: 'none', zIndex: '1' });
+    labels.domElement.setAttribute('aria-hidden', 'true');
     $('stage3d').appendChild(labels.domElement);
     // the GPU device can be taken away (memory pressure, a long sleep, a driver reset): say so instead of a blank screen
     renderer.backend?.device?.lost?.then((info) => { if (info?.reason !== 'destroyed') onGpuLost(); });
@@ -639,7 +641,7 @@ async function createApp(region, o) {
       const span = Math.hypot(seaX - pinX, seaZ - pinZ);
       const tgt = V(pinX + (seaX - pinX) * 0.45, 0, pinZ + (seaZ - pinZ) * 0.45);
       const back = span * 0.55 + 900;
-      return { pos: V(tgt.x - dir.x * back, span * 0.75 + 800, tgt.z - dir.y * back), target: tgt, center: tgt, panR: (oreg?.L ?? L) / 2 };
+      return fitView({ pos: V(tgt.x - dir.x * back, span * 0.75 + 800, tgt.z - dir.y * back), target: tgt, center: tgt, panR: (oreg?.L ?? L) / 2 }, [home, V(seaX, 0, seaZ)]);
     },
     // the point in the middle, the coast beyond it — seen from the land side. The pivot IS the point: turning and
     // zooming never lose it (before, the pivot hung in the air 16–60 m away and zooming pushed the point off screen)
@@ -674,11 +676,32 @@ async function createApp(region, o) {
       return { pos: V(cx - dir.x * 45 + dir.y * 55, ty + 32, cz - dir.y * 45 - dir.x * 55), target: tg, center: tg, panR: 150 };
     },
   };
+  // pull a view back until every given point lies in the part of the screen that no panel covers (the view
+  // 「海からここまで」 once opened with 「ここ」 behind the dock)
+  const fitCam = camera.clone(), fitV = new THREE.Vector3();
+  function fitView(v, pts) {
+    const d = v.pos.clone().sub(v.target);
+    for (let k = 0; k < 16; k++) {
+      fitCam.copy(camera);
+      fitCam.position.copy(v.target).add(d); fitCam.lookAt(v.target); fitCam.updateMatrixWorld();
+      fitCam.matrixWorldInverse.copy(fitCam.matrixWorld).invert();
+      const ok = pts.every((p) => {
+        fitV.copy(p).project(fitCam);
+        const x = (fitV.x * 0.5 + 0.5) * innerWidth, y = (-fitV.y * 0.5 + 0.5) * innerHeight;
+        return fitV.z < 1 && x > free[0] + 40 && x < free[2] - 40 && y > free[1] + 70 && y < free[3] - Math.min(110, (free[3] - free[1]) * 0.22);
+      });
+      if (ok) break;
+      d.multiplyScalar(1.1);
+    }
+    v.pos.copy(v.target).add(d);
+    return v;
+  }
   // turning, zooming and moving the view (src/camera.js): the pivot is the chosen point, moving is bounded,
   // and the user's hand always wins over a running view change
   const rig = createCameraRig({
     camera, dom: renderer.domElement, home, groundAt, views, reduceMotion, homeView: 'pin',
-    panR: 600, maxDistance: Math.max(L * 3, (oreg?.L ?? 0) * 1.5),
+    panR: 600, maxDistance: Math.max(L * 3, (oreg?.L ?? 0) * 2.2),
+    onLook: (on) => { $('nav-in').disabled = on; $('nav-out').disabled = on; },
     onView: (name) => document.querySelectorAll('#views button').forEach((b) => b.classList.toggle('on', b.dataset.v === name)),
   });
   const controls = rig.controls;
@@ -691,11 +714,16 @@ async function createApp(region, o) {
     let x1 = W, y0 = top ? top.bottom : 0;
     const y1 = dock ? dock.top : H;
     if (hud) { if (hud.width > W * 0.6) y0 = Math.max(y0, Math.min(hud.bottom, H * 0.4)); else x1 = Math.min(x1, hud.left); } // phone: a strip on top; wide: a column on the right
-    const ox = Math.round(W / 2 - x1 / 2), oy = Math.round(H / 2 - (y0 + y1) / 2);
+    // the slow-down note comes and goes inside the dock: the picture must not jump with it
+    const note = r('#auto-note');
+    const y1s = y1 + (note ? note.height + 6 : 0);
+    free = [8, y0 + 8, x1 - 8, y1s - 8];
+    $('sim').style.setProperty('--hud-b', `${Math.round(hud && hud.width > W * 0.6 ? hud.bottom : y0)}px`);
+    const ox = Math.round(W / 2 - x1 / 2), oy = Math.round(H / 2 - (y0 + y1s) / 2);
     if (Math.abs(ox) < 8 && Math.abs(oy) < 8) camera.clearViewOffset(); else camera.setViewOffset(W, H, ox, oy, W, H);
     panelRects = ['#sim .dock', '#sim .hud', '#sim .topbar', '#sim .badge', '#sim .navpad'].map(r).filter(Boolean).map((b) => [b.left - 6, b.top - 6, b.right + 6, b.bottom + 6]);
   }
-  let panelRects = [];
+  let panelRects = [], free = [0, 0, innerWidth, innerHeight];
   // portrait screens: wider lens so the point and the coast both fit
   camera.fov = innerWidth < innerHeight ? 62 : 45;
   camera.updateProjectionMatrix();
@@ -707,7 +735,12 @@ async function createApp(region, o) {
   const tmpV = new THREE.Vector3();
   let mapLabels = null;
   if (region.mapLabels?.length) {
-    mapLabels = createMapLabels(region.mapLabels, { groundAt, pin: { x: pinX, z: pinZ }, half: L / 2 - 20, max: innerWidth <= 760 ? 6 : 12 });
+    const inBox = (l) => Math.abs(l.x) < L / 2 - 20 && Math.abs(l.z) < L / 2 - 20;
+    // the wide square adds its stations and town names (seen in 「海からここまで」), outside the detailed one
+    const wideNames = (oreg?.mapLabels ?? []).filter((l) => l.kind === 'st' || l.kind === 'tw')
+      .map((l) => ({ ...l, x: l.x - innerOffset.x, z: l.z - innerOffset.z, far: true })).filter((l) => !inBox(l));
+    const topAt = (x, z) => { const i = Math.floor((x + L / 2) / dx), j = Math.floor((z + L / 2) / dx); if (i < 0 || j < 0 || i >= N || j >= N) return null; const k = j * N + i; return region.bldH[k] > 0 ? region.bed[k] + region.bldH[k] : null; };
+    mapLabels = createMapLabels([...region.mapLabels.filter(inBox), ...wideNames], { groundAt, topAt, pin: { x: pinX, z: pinZ }, half: (oreg?.L ?? L) / 2, max: 12, farScale: 6 });
     scene.add(mapLabels.group);
   }
   const beacon = createBeacon(0, 80);
@@ -717,7 +750,7 @@ async function createApp(region, o) {
   // ── state ──
   // speed: 'auto'（おまかせ）or a fixed number the user picked. acc = simulated seconds owed to the water,
   // eff = the speed the water really runs at (smoothed), hl = the slow-motion highlight that is on, if any
-  const st = { playing: false, speed: 'auto', maxSteps: N >= 1024 ? 14 : N >= 768 ? 28 : 48, frames: 0, ft: 0, lastT: performance.now(), shownResult: false, arrived: null, acc: 0, eff: 0, hl: null, hlSeen: {}, navTick: 0 };
+  const st = { playing: false, speed: 'auto', maxSteps: N >= 1024 ? 14 : N >= 768 ? 28 : 48, frames: 0, ft: 0, lastT: performance.now(), shownResult: false, arrived: null, acc: 0, eff: 0, hl: null, hlSeen: {}, navTick: 0, nowLine: null, nowKey: 'start' };
   // おまかせ: ×20 (inland runs cover ~55 min of flood travel: ×60), and ×5 while the water comes ashore
   const baseSpeed = far ? 60 : 20, SLOW = 5;
   const curSpeed = () => (st.speed === 'auto' ? (st.hl ? SLOW : baseSpeed) : st.speed);
@@ -738,7 +771,7 @@ async function createApp(region, o) {
   $('h-now').textContent = '0.00'; $('h-max').textContent = '—'; $('h-v').textContent = '—'; $('h-arr-k').textContent = '水の先端まで'; $('h-arr').textContent = '—';
   const START_SAY = reduceMotion || qs.has('manual') ? '▶ を押すと、仮定の津波が動き出します' : 'まもなく、仮定の津波が動き出します';
   $('h-say').textContent = START_SAY; $('h-say').className = 'say'; $('h-say-live').textContent = '';
-  $('now-line').textContent = START_SAY; $('band-pos').style.left = '0%'; $('band').dataset.seg = '0';
+  $('now-line').textContent = START_SAY; $('now-live').textContent = ''; $('band-pos').style.left = '0%'; $('band').dataset.seg = '0'; $('band-name').textContent = 'いま：静か';
   $('gauge-fill').style.width = '0%'; $('clock').textContent = '00:00'; $('phase').textContent = '待機（▶で開始）';
   const calm = () => $('tg-calm').checked;
 
@@ -780,7 +813,7 @@ async function createApp(region, o) {
       showSpeed();
     };
     // going back to the normal speed is an automatic change as well: it is said, too
-    const end = () => { st.hl = null; $('auto-note').hidden = true; showSpeed(); sayEvent(`ふだんの速さ（×${baseSpeed}）に戻しました`, 4); };
+    const end = () => { st.hl = null; $('auto-note').hidden = true; showSpeed(); sayEvent(`ふだんの速さ（×${baseSpeed}）に戻しました`, 4, `×${baseSpeed}に戻しました`); };
     // a seawall of the wide square (inland points) counts only while the wide view is on: from the close views
     // nothing of it can be seen, and the run would crawl for no visible reason
     const breached = solver.coast.breached > 0 || ((outerSolver?.coast.breached ?? 0) > 0 && rig.view === 'wide');
@@ -796,7 +829,7 @@ async function createApp(region, o) {
       if (t >= st.hl.until) { if (st.arrived == null && (st.hlStall || 0) < 2 && t < st.hl.begin + 240) st.hl.until = t + 16; else end(); }
     } else {
       // the seawall highlight hands over to "near" when the water then runs up to the point
-      if ((st.hlSeen.near || 0) < 2 && near && t > st.hl.until - 30) { st.hl = { kind: 'near', until: t + 120, begin: t }; st.hlSeen.near = (st.hlSeen.near || 0) + 1; st.hlStall = 0; $('auto-t').innerHTML = `<span class="why">水が近づいたので、</span>ゆっくり再生中（×${SLOW}）`; }
+      if ((st.hlSeen.near || 0) < 2 && st.arrived == null && t > st.hl.until - 30 && (near || (front < 200 && t >= st.hl.until - 1))) { st.hl = { kind: 'near', until: t + 120, begin: t }; st.hlSeen.near = (st.hlSeen.near || 0) + 1; st.hlStall = 0; $('auto-t').innerHTML = `<span class="why">水が近づいたので、</span>ゆっくり再生中（×${SLOW}）`; }
       else if (t >= st.hl.until) end();
     }
   }
@@ -881,23 +914,39 @@ async function createApp(region, o) {
     return depthSay(h);
   }
   // what is happening right now, in one line (the clock alone does not tell which stage the run is in)
-  // something that has just happened takes the line for a few seconds of real time
-  function sayEvent(text, seconds = 9) { st.event = { text, until: performance.now() + seconds * 1000 }; }
+  // something that has just happened is said in the line for a few seconds (of real time, and never longer
+  // than 150 simulated seconds — at ×60 nine seconds are nine minutes of the run)
+  function sayEvent(text, seconds = 9, short = '') { st.event = { text, short, until: performance.now() + seconds * 1000, simUntil: lead.time + 150 }; }
+  const STAGE = ['静か', '上がる', '続く（仮定）', '引く'];
+  /** [the line, a key that changes only when the SITUATION changes (read out once, without the running depth)] */
   function nowLine(t, h) {
     const w = lead.wave, tt = t - w.pre;
-    if (st.event) { if (performance.now() < st.event.until && t <= total) return st.event.text; st.event = null; }
-    if (!st.playing && t <= 0) return START_SAY;
-    if (t > total) return '再現はここまで。実際の津波は、くり返し来ます';
-    if (tt < 0) return '沖はまだ静かです';
+    if (!st.playing && t <= 0) return [START_SAY, 'start'];
+    if (t > total) return ['再現はここまで。実際の津波は、くり返し来ます', 'end'];
+    let ev = null;
+    if (st.event) { if (performance.now() < st.event.until && t < st.event.simUntil) ev = st.event; else st.event = null; }
+    const wet = h >= 0.01, deep = `ここは深さ${h.toFixed(1)}m`;
+    // the water at the point comes first: what just happened is added in brackets, never instead of it
+    const add = (line) => (ev ? (wet ? (ev.short ? `${line}（${ev.short}）` : line) : (innerWidth <= 760 && ev.short ? ev.short : ev.text)) : line);
+    if (tt < 0) return [add('沖はまだ静かです'), 'calm'];
     const trapped = pinGround < 0.3 && st.arrived != null;
-    if (tt >= w.rise + w.hold) return trapped ? '海は下がっても、ここの水は残ります' : '水が海へ戻っています';
-    if (h >= 0.01) return tt < w.rise ? `ここに水が来ました（深さ${h.toFixed(1)}m）` : `高い水位が続いています（仮定）。ここは深さ${h.toFixed(1)}m`;
+    if (tt >= w.rise + w.hold) {
+      if (trapped) return [add(`海は下がっても、ここの水は残ります${wet ? `（深さ${h.toFixed(1)}m）` : ''}`), 'trapped'];
+      return [add(`水が海へ戻っています（引く水も強く、危険です）${wet ? `。${deep}` : ''}`), 'back'];
+    }
+    if (wet) {
+      // the moment it arrives is said as such for a minute of the run, whatever the stage (Nagoya: it arrives
+      // during 「続く」, and the line used to say only "the high level continues")
+      if (st.arrived != null && t < st.arrived + 60) return [add(`ここに水が来ました（深さ${h.toFixed(1)}m）`), 'arrived'];
+      return [add(tt < w.rise ? `水が上がっています。${deep}` : `高い水位が続いています（仮定）。${deep}`), tt < w.rise ? 'wet-rise' : 'wet-hold'];
+    }
+    if (ev) return [innerWidth <= 760 && ev.short ? ev.short : ev.text, 'ev:' + ev.text];
     const breached = (solver.coast.breached || outerSolver?.coast.breached || 0) > 0;
     const onLand = Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity));
     if (breached && st.breachAt == null) st.breachAt = t;
-    if (breached && t < st.breachAt + 60) return '水が防潮壁を越えました';
-    if (onLand) return '陸に水が上がりました';
-    return tt < w.rise ? '沖の海面が上がっています' : '高い水位が続いています（仮定）';
+    if (breached && t < st.breachAt + 60) return ['水が防潮壁を越えました', 'breach'];
+    if (onLand) return ['陸に水が上がりました', 'land'];
+    return tt < w.rise ? ['沖の海面が上がっています', 'rise'] : ['高い水位が続いています（仮定）', 'hold'];
   }
   // the band: four stages of EQUAL width (its length must not be read as time)
   function bandPos(t) {
@@ -915,11 +964,13 @@ async function createApp(region, o) {
     $('phase').textContent = st.playing || t > 0 ? phase(t) : '待機（▶で開始）';
     {
       const pq = solver.probe;
-      const line = nowLine(t, pq.q && pq.k === pinK ? pq.q[0] : 0);
+      const [line, key] = nowLine(t, pq.q && pq.k === pinK ? pq.q[0] : 0);
       if (line !== st.nowLine) { st.nowLine = line; $('now-line').textContent = line; }
+      // read out when the situation changes — not for every 10 cm of depth
+      if (key !== st.nowKey) { st.nowKey = key; if (key !== 'start') $('now-live').textContent = line; }
       const [seg, f] = bandPos(t);
       $('band-pos').style.left = `${((seg + f) / 4) * 100}%`;
-      if ($('band').dataset.seg !== String(seg)) $('band').dataset.seg = String(seg);
+      if ($('band').dataset.seg !== String(seg)) { $('band').dataset.seg = String(seg); $('band-name').textContent = `いま：${STAGE[seg]}`; }
     }
     const p = solver.probe;
     if (p.q && p.k === pinK) {
@@ -948,17 +999,17 @@ async function createApp(region, o) {
       // Not a toast: it covered the very place where it happens.
       if (!st.breachSaid && (solver.coast.breached > 0 || (outerSolver?.coast.breached ?? 0) > 0)) {
         st.breachSaid = true;
-        sayEvent('水が防潮壁を越え、壊れ始めました（公式の想定と同じ条件）');
+        sayEvent('水が防潮壁を越え、壊れ始めました（越えたら壊れる、とする仮定）', 9, '水が防潮壁を越え、壊れ始めました');
       }
       // first wooden house washed away (気象庁の目安: 浸水2mで木造家屋は全面破壊。首藤の津波強度階級による)
       if (!st.washSaid && solver.coast.washed > 0 && !st.event) {
         st.washSaid = true;
-        sayEvent(`${region.buildings.some((b) => b.woodEst) ? '木造などの建物（構造は推定）' : '木造家屋'}が流され始めました（浸水2m・気象庁の目安）`);
+        sayEvent(`${region.buildings.some((b) => b.woodEst) ? '木造などの建物（構造は推定）' : '木造家屋'}が流され始めました（浸水2m・気象庁の目安）`, 9, '家屋が流され始めました');
       }
       // first water on land → offer the hazard-map colouring (日向 #5)
       if (!st.toasted && $('toast').hidden && Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity)) && !$('tg-depth').checked) {
         st.toasted = true;
-        $('toast-t').textContent = (world.marks.visible ? '水の上の細い線＝水の流れ（太く明るい方へ流れています。長いほど速い。線のない所にも水はあります）。' : '') + '水のふちの明るい線＝いまの深さ約5cmの所（その先にも、うすい水があります）。深さで色分けすると、どこが何mか分かります。';
+        $('toast-t').textContent = (world.marks.visible ? '細い線＝水の流れ。太く明るい方へ流れています（雨や漂流物ではありません。線のない所にも、水はあります）。' : '') + '水のふちの明るい線＝深さ約5cmの所（その先にも、うすい水があります）。';
         $('toast').hidden = false;
         const t = setTimeout(() => { $('toast').hidden = true; }, 14000);
         cleanups.push(() => clearTimeout(t));
@@ -1226,14 +1277,21 @@ async function createApp(region, o) {
     if (scene.userData.sky) scene.userData.sky.position.copy(camera.position);
     beacon.update(camera.position.distanceTo(home));
     if (++st.navTick % 6 === 0) {
+      for (const l of tall.labels) {
+        if (!l.visible) continue;
+        tmpV.copy(l.position).project(camera);
+        const x = (tmpV.x * 0.5 + 0.5) * innerWidth, w = l.element.offsetWidth || 220;
+        l.center.x = x - w / 2 < 6 ? Math.max(0, Math.min(0.5, (x - 6) / w)) : x + w / 2 > innerWidth - 6 ? Math.min(1, Math.max(0.5, 1 - (innerWidth - 6 - x) / w)) : 0.5;
+      }
       $('nav-needle').style.transform = `rotate(${(-rig.azimuth()).toFixed(3)}rad)`;
       if (mapLabels && $('tg-map').checked) {
         // names give way to the point's own labels and to the designated evacuation sites
         const keep = panelRects.slice(), W = innerWidth, H = innerHeight;
         const rect = (v, w, h) => { tmpV.copy(v).project(camera); if (tmpV.z > -1 && tmpV.z < 1) { const x = (tmpV.x * 0.5 + 0.5) * W, y = (-tmpV.y * 0.5 + 0.5) * H; keep.push([x - w / 2, y - h, x + w / 2, y + 8]); } };
-        rect(home, 240, 110);
+        const phone = W <= 760;
+        rect(home, phone ? 150 : 240, phone ? 70 : 110);
         for (const l of tall.labels) if (l.visible) rect(l.position, 230, 34);
-        mapLabels.update(camera, W, H, keep);
+        mapLabels.update(camera, W, H, keep, phone ? 6 : 12);
       }
     }
     // near plane follows the viewing distance: a fixed 0.5 m near with a 50 km far plane leaves no depth
@@ -1301,6 +1359,9 @@ async function createApp(region, o) {
   return {
     region, solver, world,
     begin() {
+      // the 3-D screen is on now: only now do the panels have their real size — compose the picture again and
+      // put the first view where the point is clear of them
+      compose(); setView(far ? 'wide' : 'over', true);
       renderer.setAnimationLoop(() => frame());
       if (!reduceMotion && !qs.has('manual')) { const t = setTimeout(() => { if (!st.playing) ui.play(); }, 1500); cleanups.push(() => clearTimeout(t)); }
     },
@@ -1327,7 +1388,7 @@ function onResize() {
   renderer.setPixelRatio(basePR() * prScale);
   renderer.setSize(innerWidth, innerHeight);
   labels.setSize(innerWidth, innerHeight);
-  if (app) { app.camera.aspect = innerWidth / innerHeight; app.camera.updateProjectionMatrix(); app.compose(); }
+  if (app) { app.camera.aspect = innerWidth / innerHeight; app.camera.fov = innerWidth < innerHeight ? 62 : 45; app.camera.updateProjectionMatrix(); app.compose(); }
 }
 addEventListener('resize', onResize);
 // the height of the dock, for the things that must stay clear of it (toast, side panel)

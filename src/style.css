@@ -547,6 +547,13 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 #sim .clockline { margin: 0; font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
 #sim .clockline output { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--ink-2); }
 #sim .clock-note { flex-basis: auto; margin: 0; font-size: 11px; }
+#sim .clock-note b { color: #ffd98a; font-weight: 700; }
+#sim .band-name { display: none; }
+#sim .vs { display: none; }
+#sim .navbtn:disabled { opacity: .35; cursor: default; }
+#sim #nav-home { font-size: 17px; }
+#sim #nav-home span { position: absolute; left: 0; right: 0; bottom: 2px; font-size: 10px; color: var(--ink-2); text-align: center; }
+#sim #nav-home { padding-bottom: 10px; }
 #sim .speed-sel { display: none; }
 #sim .result-btn { align-self: center; white-space: nowrap; min-height: 44px; }
 #sim .rb-s { display: none; }
@@ -564,7 +571,7 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 #sim .navbtn { position: relative; width: 44px; height: 44px; padding: 0; border-radius: 12px; border: 1px solid var(--line); background: rgba(9, 18, 26, .8); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 #sim .navbtn:hover { background: rgba(30, 50, 66, .92); }
 #sim #nav-n svg { margin-top: -6px; }
-#sim #nav-n span { position: absolute; left: 0; right: 0; bottom: 2px; font-size: 9px; color: var(--ink-2); text-align: center; }
+#sim #nav-n span { position: absolute; left: 0; right: 0; bottom: 1px; font-size: 11px; color: var(--ink-2); text-align: center; }
 #sim #nav-needle { transform-origin: 12px 12px; }
 #sim .nav-hint { position: absolute; z-index: 5; left: 50%; bottom: calc(var(--dock-h, 200px) + var(--credit-h, 14px) + 28px); transform: translateX(-50%); margin: 0; background: rgba(9, 18, 26, .86); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; font-size: 13px; pointer-events: none; max-width: calc(100vw - 24px); text-align: center; }
 #sim .nav-hint[hidden] { display: none; }
@@ -594,12 +601,11 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
   #sim .now { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 4px 6px; align-items: center; }
   #sim .now-main { display: contents; }
   #sim .now-line { grid-column: 2; grid-row: 1; font-size: 13px; }
-  #sim .band { grid-column: 1 / 3; grid-row: 2; height: 8px; }
+  #sim .band { grid-column: 2 / -1; grid-row: 2; height: 8px; }
+  #sim .band-name { display: block; grid-column: 1 / 2; grid-row: 2; font-size: 10px; line-height: 1.1; color: var(--ink-2); white-space: nowrap; overflow: visible; z-index: 1; }
   #sim .band i { font-size: 0; }
-  #sim .clockline { grid-column: 3 / -1; grid-row: 2; font-size: 10px; gap: 3px; justify-content: flex-end; }
-  #sim .clockline .k { display: none; }
-  #sim .clockline output { font-size: 12px; }
-  #sim .clock-note { font-size: 10px; }
+  /* スマホ幅では時計を出さない：0から数え上がる「分:秒」は「地震から何分」と読める。段階は、帯と名前で分かる */
+  #sim .clockline { display: none; }
   #sim .round { width: 44px; height: 44px; grid-column: 1; grid-row: 1; }
   #sim .speed-sel { display: block; grid-column: 3; grid-row: 1; }
   #sim .speed-sel span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
@@ -613,7 +619,8 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
   #sim #views button { flex: 1 1 auto; min-width: 0; padding: 6px 2px; font-size: 12px; white-space: nowrap; }
   #sim .disp-btn { flex: none; padding: 0 8px; }
   #sim .auto-note { font-size: 12px; padding: 2px 2px 2px 10px; flex-wrap: nowrap; justify-content: space-between; }
-  #sim .auto-note .why { display: none; }
+  #sim .vl { display: none; }
+  #sim .vs { display: inline; }
   #sim .toggles label { min-height: 44px; white-space: normal; }
   #sim .navpad { left: auto; right: 6px; top: auto; bottom: calc(var(--dock-h, 140px) + 14px); transform: none; }
   #sim .navpad .pc { display: none; }
@@ -639,3 +646,22 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
   .quake { font-size: 12px; }
 }
 @media (min-width: 761px) and (max-width: 1100px) { #sim .seg button { padding: 8px 7px; font-size: 12px; } #sim .ctl { gap: 6px; } }
+/* 通知：スマホ幅では、文を上に全幅で、ボタンをその下に横並びで（狭い所でボタンの字が縦に折れないように） */
+#sim .toast button { white-space: nowrap; flex: none; }
+@media (max-width: 760px) {
+  #sim .toast { flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; padding: 8px 8px 6px 12px; }
+  #sim .toast #toast-t { flex: 1 1 100%; }
+}
+@media (max-width: 760px) {
+  /* 帯の名前（いま：続く）は、帯の左に。帯は残りの幅 */
+  #sim .now { grid-template-columns: 44px 1fr auto auto; }
+  #sim .band-name { grid-column: 1 / 3; }
+  #sim .band { grid-column: 3 / -1; }
+  /* 通知は、上の欄のすぐ下に出す（右下の「北」「戻る」のボタンと、地点のまわりを隠さない） */
+  .toast, #sim .toast { top: calc(var(--hud-b, 200px) + 6px); bottom: auto; }
+  .bt-off .cav { display: block; margin: 2px 0 0; font-size: 11px; color: var(--ink-2); font-weight: 400; }
+}
+/* 通知は、どの幅でも上に出す（地点のまわりと、下の操作の上を隠さない）。PC幅は、地名の行のすぐ下 */
+@media (min-width: 761px) { .toast, #sim .toast { top: 76px; bottom: auto; } }
+#sim .seg button { padding: 8px 8px; }
+@media (min-width: 761px) { #sim .seg button { padding: 8px 6px; font-size: 12.5px; } }

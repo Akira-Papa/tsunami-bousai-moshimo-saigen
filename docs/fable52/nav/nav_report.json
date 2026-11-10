@@ -1,0 +1,266 @@
+{
+ "base": "http://127.0.0.1:5341",
+ "at": "2026-11-10T14:15:37.845Z",
+ "cases": {
+  "pc": {
+   "checks": {
+    "wheel200_pinOnScreen": true,
+    "noBlackAtMaxOut": true,
+    "panWithin600m": true,
+    "panAboveGround": true,
+    "homeButton": true,
+    "dragWinsDuringViewChange": true,
+    "settlesQuickly": true,
+    "northButton": true,
+    "keyboard": true,
+    "zoomButtons": true,
+    "eyeTurnsHead": true,
+    "labelsShownNoOverlap": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "start": {
+    "pinPx": [
+     572,
+     406
+    ],
+    "pinInFront": true,
+    "targetFromPin": 0,
+    "targetY": 5.7,
+    "pinGround": 3.650576114654541,
+    "dist": 473.8,
+    "camY": 288.7,
+    "az": 108.4,
+    "view": "over",
+    "moving": false
+   },
+   "labels": {
+    "n": 2,
+    "overlaps": 0,
+    "names": [
+     "港警察署分庁舎",
+     "港町"
+    ]
+   },
+   "wheelIn": {
+    "pinPx": [
+     572,
+     406
+    ],
+    "pinInFront": true,
+    "targetFromPin": 0,
+    "targetY": 5.7,
+    "pinGround": 3.650576114654541,
+    "dist": 8,
+    "camY": 10.4,
+    "az": 108.4,
+    "view": "over",
+    "moving": false
+   },
+   "wheelOut": {
+    "pinPx": [
+     572,
+     406
+    ],
+    "pinInFront": true,
+    "targetFromPin": 0,
+    "targetY": 5.7,
+    "pinGround": 3.650576114654541,
+    "dist": 4500,
+    "camY": 2693.5,
+    "az": 108.4,
+    "view": "over",
+    "moving": false
+   },
+   "blackAtMaxOut": 0,
+   "pan": {
+    "far": 600,
+    "low": 2.049423885345459
+   },
+   "afterPan": {
+    "pinPx": [
+     165,
+     34
+    ],
+    "pinInFront": true,
+    "targetFromPin": 600,
+    "targetY": 5.7,
+    "pinGround": 3.650576114654541,
+    "dist": 473.8,
+    "camY": 288.7,
+    "az": 108.4,
+    "view": "over",
+    "moving": false
+   },
+   "home": {
+    "pinPx": [
+     572,
+     406
+    ],
+    "pinInFront": true,
+    "targetFromPin": 0,
+    "targetY": 5.7,
+    "pinGround": 3.650576114654541,
+    "dist": 473.8,
+    "camY": 288.7,
+    "az": 108.4,
+    "view": "over",
+    "moving": false
+   },
+   "dragDuringChange": {
+    "movingBefore": true,
+    "movingAfter": false,
+    "azBefore": 108,
+    "azAfter": -166.6
+   },
+   "coast": {
+    "turned": 160.2,
+    "after400ms": 0.09999999999999432
+   },
+   "north": 0,
+   "keys": {
+    "arrowMoved": 56.9,
+    "zoomed": 94.80000000000001,
+    "turned": 15,
+    "homeAgain": 0
+   },
+   "eyeMoved": 0.24,
+   "labelsOver": {
+    "n": 2,
+    "overlaps": 0,
+    "names": [
+     "港警察署分庁舎",
+     "港町"
+    ]
+   }
+  },
+  "inland": {
+   "checks": {
+    "pinVisibleInFirstView": true,
+    "noBlack": true,
+    "nagoyaStationLabel": true,
+    "labelsNoOverlap": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "pinInWide": {
+    "x": 572,
+    "y": 621,
+    "free": true
+   },
+   "labelsWide": {
+    "n": 12,
+    "overlaps": 0,
+    "names": [
+     "亀島駅",
+     "本陣駅",
+     "浅間町駅",
+     "栄生駅",
+     "山王駅",
+     "中村公園駅",
+     "久屋大通駅",
+     "名古屋城駅",
+     "矢場町駅",
+     "尾頭橋駅",
+     "岩塚駅",
+     "小本駅"
+    ]
+   },
+   "blackWide": 0,
+   "blackAtMaxOut": 0,
+   "labels": {
+    "n": 3,
+    "overlaps": 0,
+    "names": [
+     "名鉄名古屋駅",
+     "近鉄名古屋駅",
+     "グロービス経営大学院大学"
+    ]
+   }
+  },
+  "sp": {
+   "checks": {
+    "labelsAtMost6": true,
+    "pinVisible": true,
+    "free60": true,
+    "targets44": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "before": {
+    "free": 68.3,
+    "small": [],
+    "hud": 99,
+    "dock": 124,
+    "labels": 0
+   },
+   "running": {
+    "free": 62.2,
+    "small": [],
+    "hud": 99,
+    "dock": 179,
+    "labels": 0
+   },
+   "withSwitches": {
+    "free": 20.5,
+    "small": [],
+    "hud": 99,
+    "dock": 536,
+    "labels": 0
+   },
+   "labelsOverPin": [
+    0,
+    0
+   ],
+   "pinFree": {
+    "x": 195,
+    "y": 450,
+    "free": true
+   }
+  },
+  "sp_inland": {
+   "checks": {
+    "pinVisibleInFirstView": true,
+    "labels1to6": true,
+    "noOverflow": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "pinInWide": {
+    "x": 195,
+    "y": 591,
+    "free": true
+   },
+   "overflow": [],
+   "labels": {
+    "n": 6,
+    "overlaps": 0,
+    "names": [
+     "亀島駅",
+     "栄生駅",
+     "東枇杷島駅",
+     "栄駅",
+     "名古屋城駅",
+     "尾頭橋駅"
+    ]
+   }
+  },
+  "sp_small": {
+   "checks": {
+    "noOverflow": true,
+    "pinVisible": true,
+    "noErrors": true
+   },
+   "errors": [],
+   "m": {
+    "free": 59.1,
+    "overflow": 0
+   },
+   "pinFree": {
+    "x": 188,
+    "y": 349,
+    "free": true
+   }
+  }
+ }
+}

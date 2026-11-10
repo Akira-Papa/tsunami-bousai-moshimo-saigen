@@ -126,6 +126,7 @@ export async function buildOuterRegion(o) {
   for (let k = 0; k < N * N; k++) res.manning[k] = water[k] ? 0.025 : Math.min(0.09, 0.045 + 0.08 * cb[k]);
   res.photo = photo;
   res.official = { cells: [], covered: false, available: false };
+  res.mapLabels = vec.labels ?? [];
   res.stats = { outer: true, solids: vec.solids.length, lines: vec.lines.length };
   return res;
 }

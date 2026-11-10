@@ -317,7 +317,7 @@ export async function loadVectorCoarse(frame, L, onTile) {
   const h = L / 2 + 50;
   const nw = frame.toLatLon(-h, -h), se = frame.toLatLon(h, h);
   const tiles = tilesFor({ west: nw.lon, east: se.lon, north: nw.lat, south: se.lat }, 14);
-  const lines = [], solids = [];
+  const lines = [], solids = [], labels = [];
   await pool(tiles, 8, async (t) => {
     try {
       const r = await fetchOk(URLS.bvmap(t));
@@ -325,9 +325,10 @@ export async function loadVectorCoarse(frame, L, onTile) {
         const buf = await r.arrayBuffer();
         lines.push(...tileLines(buf, t, frame));
         solids.push(...tileFeatures(buf, 'building', t, frame));
+        labels.push(...tileMapExtra(buf, t, frame).labels); // station and town names for the wide view
       }
     } catch { /* keep going: missing tiles only lose roughness / seawall detail */ }
     onTile?.();
   });
-  return { lines, solids, tiles: tiles.length };
+  return { lines, solids, tiles: tiles.length, labels: dedupeLabels(labels) };
 }
