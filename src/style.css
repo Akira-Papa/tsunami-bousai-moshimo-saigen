@@ -667,3 +667,6 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 @media (min-width: 761px) { #sim .seg button { padding: 8px 6px; font-size: 12.5px; } }
 /* 通知（761〜1230px）：上の注意の帯と右の欄にかからないよう、帯の下・欄の左に置く */
 @media (min-width: 761px) and (max-width: 1230px) { .toast, #sim .toast { top: 128px; left: 16px; right: 312px; transform: none; width: auto; max-width: none; } }
+/* 端末が、選んだ速さについていけない時の知らせ */
+#sim .slow-note { margin: 0; padding: 6px 10px; border-radius: 10px; font-size: 12px; line-height: 1.5; background: rgba(255, 143, 134, .12); border: 1px solid rgba(255, 143, 134, .5); color: #ffd9d5; }
+#sim .slow-note[hidden] { display: none; }

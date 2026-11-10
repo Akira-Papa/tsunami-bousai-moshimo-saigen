@@ -914,6 +914,15 @@ async function createApp(region, o) {
     return depthSay(h);
   }
   // what is happening right now, in one line (the clock alone does not tell which stage the run is in)
+  // "Water has come onto the land" means the flood front has MOVED. Land below the starting sea level (a quay
+  // under the high tide) is wet from the first second, and that used to announce "陸に水が上がりました" seven
+  // seconds into the run, with the sea still calm. front0 = the front as it stands before the sea has risen.
+  const frontNow = () => Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity);
+  function floodOnLand() {
+    const f = frontNow(), t = lead.time, w = lead.wave;
+    if (t < w.pre + w.rise * 0.1) { if (Number.isFinite(f)) st.front0 = Math.min(st.front0 ?? Infinity, f); return false; }
+    return Number.isFinite(f) && f < (st.front0 ?? Infinity) - 15;
+  }
   // something that has just happened is said in the line for a few seconds (of real time, and never longer
   // than 150 simulated seconds — at ×60 nine seconds are nine minutes of the run)
   function sayEvent(text, seconds = 9, short = '') { st.event = { text, short, until: performance.now() + seconds * 1000, simUntil: lead.time + 150 }; }
@@ -943,7 +952,7 @@ async function createApp(region, o) {
     }
     if (ev) return [innerWidth <= 760 && ev.short ? ev.short : ev.text, 'ev:' + ev.text];
     const breached = (solver.coast.breached || outerSolver?.coast.breached || 0) > 0;
-    const onLand = Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity));
+    const onLand = floodOnLand();
     if (breached && st.breachAt == null) st.breachAt = t;
     if (breached && t < st.breachAt + 60) return ['水が防潮壁を越えました', 'breach'];
     if (onLand) return ['陸に水が上がりました', 'land'];
@@ -1008,7 +1017,7 @@ async function createApp(region, o) {
         sayEvent(`${region.buildings.some((b) => b.woodEst) ? '木造などの建物（構造は推定）' : '木造家屋'}が流され始めました（浸水2m・気象庁の目安）`, 9, '家屋が流され始めました');
       }
       // first water on land → offer the hazard-map colouring (日向 #5)
-      if (!st.toasted && $('toast').hidden && Number.isFinite(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity)) && !$('tg-depth').checked) {
+      if (!st.toasted && $('toast').hidden && floodOnLand() && !$('tg-depth').checked) {
         st.toasted = true;
         $('toast-t').textContent = (world.marks.visible ? '細い線＝水の流れ。太く明るい方へ流れています（雨や漂流物ではありません。線のない所にも、水はあります）。' : '') + '水のふちの明るい線＝深さ約5cmの所（その先にも、うすい水があります）。';
         $('toast').hidden = false;
@@ -1345,12 +1354,33 @@ async function createApp(region, o) {
         fpsGood = fps >= 55 ? fpsGood + 1 : 0;
         if (fpsSec > 3 && fps < 40 && prScale > 0.6) { prScale *= 0.85; fpsGood = 0; onResize(); }
         else if (fpsGood >= 3 && prScale < 1) { prScale = Math.min(1, prScale * 1.15); fpsGood = 0; onResize(); }
-        if (st.playing) {
-          if (fps < 28 && st.maxSteps > 2) st.maxSteps = Math.max(2, Math.floor(st.maxSteps * 0.8));
-          else if (fps > 50 && st.maxSteps < 120) st.maxSteps = Math.ceil(st.maxSteps * 1.15);
-        }
         const eff = st.playing ? (lead.time - (st.lastSimT ?? lead.time)) / fpsAcc : 0;
         st.lastSimT = lead.time;
+        if (st.playing) {
+          // How many sub-steps one frame may take. A low frame rate alone is NOT a reason to compute less: a tab
+          // in the background or a throttled device draws 20 frames a second with an idle GPU, and cutting the
+          // sub-steps there (the old rule: ×0.8 every second below 28 fps, down to 2) left the clock crawling at
+          // about ×1 whatever speed was chosen — the water never arrived. So: look at how busy the GPU really is
+          // (gpuMs = time until the work of a frame is done), give a frame what the chosen speed needs while
+          // there is room, and cut only when the GPU itself is the bottleneck — never below what ×5 needs.
+          const sdt = outerSolver && !st.innerActive ? outerSolver.dt * 6 : solver.dt; // simulated seconds per unit of maxSteps
+          const need = Math.ceil(curSpeed() / fps / sdt), floor = Math.max(2, Math.ceil(Math.min(curSpeed(), 5) / fps / sdt));
+          const busy = st.gpuMs != null && st.gpuMs > (1000 / fps) * 0.7;
+          const CAP = 320;
+          if (busy && fps < 28) st.maxSteps = Math.max(floor, Math.floor(st.maxSteps * 0.8));
+          else if (!busy && st.maxSteps < Math.min(need, CAP)) st.maxSteps = Math.min(CAP, need, Math.max(st.maxSteps + 4, Math.ceil(st.maxSteps * 1.5)));
+          else if (fps > 50 && st.maxSteps < 120) st.maxSteps = Math.ceil(st.maxSteps * 1.15);
+          if (st.maxSteps < floor) st.maxSteps = floor;
+          // the device cannot keep the chosen speed: say so (otherwise it only looks as if no water were coming)
+          const want = curSpeed();
+          st.slowFor = want < 900 && eff < want * 0.55 && !solver.waiting ? (st.slowFor || 0) + 1 : 0;
+          const slow = $('slow-note');
+          if (st.slowFor >= 4) { slow.textContent = `この端末では、選んだ速さ（×${want}）より遅く進んでいます（いま 約×${eff < 10 ? eff.toFixed(1) : eff.toFixed(0)}）。水が動くまで、時間がかかります。`; slow.hidden = false; }
+          else if (st.slowFor === 0) slow.hidden = true;
+          // measure the GPU once a second: from here until everything submitted so far is done
+          const g0 = performance.now();
+          renderer.backend.device?.queue?.onSubmittedWorkDone?.().then(() => { st.gpuMs = performance.now() - g0; }).catch(() => {});
+        } else $('slow-note').hidden = true;
         $('perf').textContent = `${fps.toFixed(0)} fps · 格子 ${N}²${outerSolver ? ` ＋広域 ${outerSolver.N}²${st.innerActive ? '' : '（詳細は待機中）'}` : ''} · 実効 ×${eff.toFixed(0)}`;
         fpsAcc = 0; fpsN = 0;
       }
