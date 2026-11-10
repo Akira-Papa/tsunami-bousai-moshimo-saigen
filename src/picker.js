@@ -28,6 +28,20 @@ export const PRESETS = [
 const sidePad = () => (innerWidth > 760 ? { left: Math.min(460, innerWidth * 0.4), top: 0, right: 0, bottom: 0 } : { bottom: innerHeight * 0.55, top: 0, left: 0, right: 0 });
 
 export function createPicker({ onPick }) {
+  // The map needs WebGL2. Without it (very old devices, blocked graphics drivers) the page must still work:
+  // the search box, the presets and the official card are plain text.
+  let map = null;
+  try { map = makeMap(); } catch (e) {
+    console.warn('map could not start', e);
+    const m = document.getElementById('map');
+    m.classList.add('nomap');
+    m.textContent = 'この端末では地図を表示できません。住所・地名の検索か、下の地点の名前から選べます。';
+    document.getElementById('map-note').hidden = true;
+  }
+  return wire(map, onPick);
+}
+
+function makeMap() {
   const map = new maplibregl.Map({
     container: 'map',
     style: {
@@ -50,24 +64,33 @@ export function createPicker({ onPick }) {
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  // phones: the credit starts folded (the "i" button opens it) — unfolded it covers the card's first lines
+  if (innerWidth <= 760) map.once('load', () => document.querySelector('#map .maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
+  return map;
+}
+
+function wire(map, onPick) {
   let marker = null;
   let square = false;
+  // one promise for "the style is ready": asking isStyleLoaded() later can be false while tiles are still
+  // streaming, and a once('load') registered then never fires (the outline silently went missing)
+  const ready = map ? new Promise((r) => map.once('load', r)) : new Promise(() => {});
 
   function setPoint(lat, lon, fly = true) {
-    if (!marker) {
+    if (map && !marker) {
       const el = document.createElement('div');
       el.className = 'pin-marker';
       marker = new maplibregl.Marker({ element: el, anchor: 'bottom-left' });
     }
-    marker.setLngLat([lon, lat]).addTo(map);
-    if (fly) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13.6), speed: 1.6, padding: sidePad() });
+    marker?.setLngLat([lon, lat]).addTo(map);
+    if (fly && map) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 13.6), speed: 1.6, padding: sidePad() });
     onPick(lat, lon);
   }
 
   /** outline of the square that will be simulated */
-  function showSquare(ring, outerRing = null) {
+  async function showSquare(ring, outerRing = null) {
     // a point picked (or deep-linked) before the style finished loading must wait, not throw
-    if (!map.isStyleLoaded()) { map.once('load', () => showSquare(ring, outerRing)); return; }
+    await ready;
     const fc = (r) => ({ type: 'FeatureCollection', features: r ? [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [r] }, properties: {} }] : [] });
     if (!square) {
       map.addSource('dom', { type: 'geojson', data: fc(ring) });
@@ -83,7 +106,7 @@ export function createPicker({ onPick }) {
     }
   }
 
-  map.on('click', (e) => setPoint(e.lngLat.lat, e.lngLat.lng, false));
+  map?.on('click', (e) => setPoint(e.lngLat.lat, e.lngLat.lng, false));
 
   // presets
   const pre = document.getElementById('presets');
@@ -119,11 +142,11 @@ export function createPicker({ onPick }) {
       if (!js.length) { list.innerHTML = '<li>見つかりませんでした</li>'; return; }
       for (const f of js.slice(0, 8)) {
         const li = document.createElement('li');
-        li.tabIndex = 0;
-        li.textContent = f.properties.title;
-        const go = () => { list.hidden = true; setPoint(f.geometry.coordinates[1], f.geometry.coordinates[0]); };
-        li.onclick = go;
-        li.onkeydown = (ev) => { if (ev.key === 'Enter') go(); };
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = f.properties.title;
+        b.onclick = () => { list.hidden = true; setPoint(f.geometry.coordinates[1], f.geometry.coordinates[0]); };
+        li.appendChild(b);
         list.appendChild(li);
       }
     } catch {
@@ -131,5 +154,5 @@ export function createPicker({ onPick }) {
     }
   });
 
-  return { map, setPoint, showSquare, resize: () => map.resize() };
+  return { map, setPoint, showSquare, resize: () => map?.resize() };
 }

@@ -239,3 +239,171 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .go-bar { position: sticky; bottom: -1px; z-index: 2; margin: 0 -2px; padding: 10px 2px 4px; background: linear-gradient(to bottom, transparent, var(--panel-solid, rgba(12, 22, 32, 0.96)) 14px); }
 .go-bar #go { width: 100%; }
 .go-bar .warn, .go-bar .info { margin: 0 0 8px; }
+
+/* ═════════ Fable 5.2 磨き直し（2026-11-10）═════════ */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+:root { --amber: #f2b84b; --mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+:focus-visible { outline: 3px solid #fff; outline-offset: 2px; border-radius: 4px; }
+.notsafe { color: #ffd98a; font-weight: 700; }
+.linkbtn { display: inline-flex; flex-direction: column; gap: 1px; background: rgba(79,179,217,.16); border: 1px solid rgba(79,179,217,.55); border-radius: 10px; padding: 9px 12px; min-height: 44px; color: #dff3ff; text-decoration: none; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.linkbtn small { font-weight: 400; font-size: 12px; color: var(--ink-2); }
+.linkbtn:hover { background: rgba(79,179,217,.26); }
+
+/* 常設の一行：強い揺れ → すぐ高い所へ */
+.quake { position: sticky; top: -20px; z-index: 3; margin: -20px -20px 14px; padding: 10px 20px; background: #3a2a08; border-bottom: 1px solid rgba(242,184,75,.6); border-radius: var(--radius) var(--radius) 0 0; display: grid; gap: 2px; font-size: 14px; line-height: 1.5; color: #ffe9b8; }
+.quake b { color: #fff; font-size: 15px; }
+.quake span { font-size: 12px; }
+.pick-card .sel { scroll-margin-top: 76px; }
+.badge { display: grid; gap: 1px; border-radius: 14px; max-width: min(340px, calc(100vw - 16px)); pointer-events: none; }
+.badge span { font-size: 12px; font-weight: 500; color: #fff; letter-spacing: 0; }
+.call { display: grid; gap: 4px; margin: 12px 0; border-left-color: var(--amber); background: rgba(242,184,75,.12); }
+.call b { font-size: 17px; }
+.call span { font-size: 14px; font-weight: 500; }
+
+/* この地点の公式想定 */
+.brief { background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
+.brief-h, .brief-h3, .setup-h { margin: 0; font-size: 16px; display: grid; gap: 2px; }
+.brief-h small, .brief-h3 small, .setup-h small { font-size: 12px; font-weight: 400; color: var(--ink-2); line-height: 1.5; }
+.brief-h3 { font-size: 15px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.brief-main { display: grid; gap: 0; }
+.brief-num { font-family: var(--mono); font-size: 40px; line-height: 1.1; color: #fff; }
+.brief-num i { font-style: normal; font-size: 16px; color: var(--ink-2); margin-left: 3px; }
+.brief-say { margin: 0; font-size: 14px; line-height: 1.6; color: #ffcfa8; font-weight: 700; }
+.brief-arr, .brief-none, .brief-fail, .brief-wait { margin: 0; font-size: 14px; line-height: 1.7; }
+.brief-none { background: rgba(242,184,75,.12); border: 1px solid rgba(242,184,75,.5); border-radius: 10px; padding: 10px 12px; }
+.brief-fail { background: rgba(226,87,76,.14); border: 1px solid rgba(226,87,76,.6); border-radius: 10px; padding: 10px 12px; }
+.brief-wait { color: var(--ink-2); }
+.brief-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; align-items: center; }
+.evac-group { margin: 6px 0 2px; font-size: 13px; font-weight: 700; color: #9fe6c2; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.evac-group.far { color: #ffd98a; }
+.evac-group small { font-weight: 400; font-size: 12px; color: var(--ink-2); }
+.evac-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.evac-item { width: 100%; display: flex; gap: 10px; align-items: flex-start; text-align: left; background: rgba(62,207,142,.08); border: 1px solid rgba(62,207,142,.45); border-radius: 10px; padding: 9px 10px; cursor: pointer; min-height: 44px; }
+.evac-item:hover { background: rgba(62,207,142,.16); }
+.evac-letter, .evac-marker { flex: none; width: 26px; height: 26px; border-radius: 50%; background: #1f9d68; color: #fff; font-weight: 800; font-size: 14px; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.45); font-family: var(--font); }
+.evac-body { display: grid; gap: 2px; min-width: 0; }
+.evac-body b { font-size: 15px; line-height: 1.4; }
+.evac-meta { font-size: 13px; color: var(--ink); line-height: 1.5; }
+.evac-addr, .evac-rem { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.evac-low { font-size: 13px; color: #ffb38a; font-weight: 700; line-height: 1.5; }
+.evac-more summary { cursor: pointer; font-size: 13px; padding: 8px 0; color: var(--sea); }
+.evac-more[open] summary { margin-bottom: 6px; }
+.evac-note { margin: 4px 0 0; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+.evac-note b { color: var(--ink); }
+.lowmark { color: #ffb38a; }
+
+/* 地図の注記（丸のない所も安全ではない） */
+.map-note { position: absolute; z-index: 2; right: 56px; top: 10px; max-width: min(430px, calc(100vw - 500px)); margin: 0; background: rgba(255,255,255,.94); color: #2a2320; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+.map-note span { display: none; }
+.map-note[data-state="ok"] .mn-ok, .map-note[data-state="far"] .mn-far, .map-note[data-state="failed"] .mn-failed { display: inline; }
+.map-note .sw { border-radius: 50%; width: 10px; height: 10px; margin-right: 4px; outline: 1px solid rgba(120,50,50,.6); }
+
+/* 3Dで再現する（設定） */
+.sim-setup { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sim-setup[hidden] { display: none; }
+.cond-line { margin: 0; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+.cond-line b { color: var(--ink); }
+.cond-line small { display: block; font-size: 12px; color: var(--ink-3); }
+.adv { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+.adv summary { cursor: pointer; padding: 11px 0; font-size: 14px; font-weight: 700; min-height: 44px; }
+.adv summary small { font-weight: 400; color: var(--ink-2); font-size: 12px; }
+.adv[open] { padding-bottom: 12px; display: grid; gap: 10px; }
+#gpu-note { display: grid; gap: 4px; margin: 0 0 10px; }
+#gpu-note[hidden] { display: none; }
+#gpu-note small { font-size: 12px; color: var(--ink-2); }
+.results li { padding: 0; }
+.results li button { width: 100%; text-align: left; background: transparent; border: 0; padding: 10px 12px; cursor: pointer; min-height: 44px; }
+.load-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+
+/* 再現中 */
+.hud-off { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.hud-off output { font-family: var(--mono); font-weight: 700; font-size: 15px; color: #ffd98a; }
+.hud-detail { display: grid; gap: 12px; }
+.hud.closed .hud-detail { display: none; }
+.hud-more { justify-self: start; }
+.time .k small { font-size: 11px; color: var(--ink-3); margin-left: 4px; }
+.disp summary { display: none; }
+.result-btn { justify-self: end; min-height: 40px; }
+.dock { grid-template-columns: 1fr auto; align-items: center; }
+.dock > .time, .dock > .ctl, .dock > #legend { grid-column: 1 / -1; }
+.htall ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 3px; }
+.htall li small { color: var(--ink-3); margin-left: 6px; }
+.lbl.here { background: #c93a30; }
+.gauge i, .stats dt, .legend, .legend-k, .perf, .lbl.tick, .lbl.floor, .htall > small, .hnote, .fineprint, .credit { font-size: 12px; }
+.credit { font-size: 11px; }
+
+/* 結果：このあとすること → 数字 */
+.r-act { display: grid; gap: 10px; }
+.r-key { display: grid; gap: 8px; }
+.r-key p { margin: 0; font-size: 15px; line-height: 1.7; }
+.r-main b, .r-offline b, .r-prep b { font-family: var(--mono); font-size: 20px; color: #fff; }
+.r-amber { background: rgba(242,184,75,.14); border: 1px solid rgba(242,184,75,.65); border-radius: 10px; padding: 12px 14px; }
+.r-amber b { color: #ffd98a; }
+.r-offline.strong { background: rgba(226,87,76,.13); border: 1px solid rgba(226,87,76,.55); border-radius: 10px; padding: 10px 14px; }
+.r-prep { border-left: 4px solid var(--here); padding: 4px 12px; font-weight: 700; }
+.r-prep small { display: block; font-weight: 400; font-size: 13px; color: #ffcfa8; }
+.r-detail { margin-top: 16px; border-top: 1px solid var(--line); }
+.r-detail > summary { cursor: pointer; padding: 14px 0; font-weight: 700; font-size: 15px; min-height: 44px; }
+.result-card h2 { padding-right: 44px; }
+
+/* 避難メモ */
+.memo-modal { position: fixed; z-index: 40; }
+.memo-fields { display: grid; gap: 6px; margin: 10px 0; }
+.memo-fields label { font-size: 14px; font-weight: 700; margin-top: 8px; line-height: 1.5; }
+.memo-fields textarea { width: 100%; background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; color: inherit; line-height: 1.6; resize: vertical; min-height: 64px; }
+.print-sheet { display: none; }
+
+@media (max-width: 760px) {
+  .quake { top: -16px; margin: -16px -16px 12px; padding: 8px 16px; border-radius: 16px 16px 0 0; font-size: 13px; }
+  .quake b { font-size: 14px; }
+  .pick-card { max-height: 62vh; }
+  .map-note { left: 8px; right: 52px; top: 8px; max-width: none; font-size: 11px; padding: 5px 8px; }
+  .badge { font-size: 12px; padding: 5px 10px; border-radius: 12px; }
+  .badge span { font-size: 12px; }
+  .topbar { top: 58px; }
+  .hud { top: 108px; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 8px 12px; align-items: start; }
+  .hud-main { grid-column: 1; }
+  .hud-more { grid-column: 2; grid-row: 1; justify-self: end; }
+  .hud-detail { grid-column: 1 / -1; gap: 8px; }
+  .hud .gauge { margin-top: 4px; }
+  .hud-off { margin-top: 4px; padding-top: 4px; }
+  .say { font-size: 13px; }
+  .stats dt, .stats dd { font-size: 12px; }
+  .dock { gap: 6px; }
+  .disp summary { display: block; cursor: pointer; font-size: 13px; padding: 8px 4px; color: var(--sea); min-height: 36px; }
+  .disp { grid-column: 1; min-width: 0; }
+  .disp[open] { grid-column: 1 / -1; }
+  .result-btn { grid-column: 2; grid-row: 3; align-self: start; }
+  .disp[open] + .result-btn { grid-row: 4; grid-column: 1 / -1; justify-self: stretch; }
+  .time .k small { display: block; margin-left: 0; }
+  .result-card { padding: 16px; max-height: calc(100dvh - 16px); }
+  .modal { padding: 8px; }
+  .call b { font-size: 16px; }
+  .r-key p { font-size: 14px; }
+  .brief-links { flex-direction: column; align-items: stretch; }
+}
+@media (min-width: 761px) and (max-width: 1100px) { .map-note { display: none; } .badge { top: 64px; } .toast { top: 128px; } }
+@media (min-width: 761px) { .toast { top: 84px; } }
+
+/* 印刷：避難メモだけ */
+@media print {
+  body > *:not(#print-sheet) { display: none !important; }
+  html, body { background: #fff; color: #000; overflow: visible; height: auto; }
+  .print-sheet { display: block; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 12pt; line-height: 1.7; padding: 0; }
+  .print-sheet h1 { font-size: 20pt; margin: 0 0 6pt; }
+  .print-sheet h2 { font-size: 12pt; margin: 12pt 0 2pt; border-bottom: 1px solid #000; }
+  .print-sheet .p-quake { border: 2px solid #000; padding: 6pt 8pt; font-weight: 700; font-size: 13pt; }
+  .print-sheet .p-fill { min-height: 28pt; font-size: 14pt; }
+  .print-sheet .blank { display: block; height: 30pt; border-bottom: 1px dotted #666; }
+  .print-sheet .p-foot { margin-top: 14pt; font-size: 9pt; border-top: 1px solid #000; padding-top: 4pt; }
+  .print-sheet .p-meta { font-size: 10pt; }
+  .print-sheet ol { margin: 0; padding-left: 18pt; }
+}
+#map.nomap { display: grid; place-items: start center; padding: 24px 16px; font-size: 14px; color: var(--ink-2); background: radial-gradient(1200px 700px at 30% 20%, #16354a 0%, var(--bg) 60%); }
+.brief-case { margin: 0; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+.brief-case.warnish { font-size: 14px; color: var(--ink); background: rgba(242,184,75,.14); border: 1px solid rgba(242,184,75,.65); border-radius: 10px; padding: 10px 12px; }
+@media (max-width: 760px) { #map .maplibregl-ctrl-bottom-right { bottom: 62vh; } }
+[tabindex="-1"]:focus, [tabindex="-1"]:focus-visible { outline: none; }
+.time { flex-wrap: wrap; }
+.clock-note { font-size: 12px; color: var(--ink-3); }
+@media (max-width: 760px) { .clock-note { flex-basis: 100%; margin-top: -4px; } .time { gap: 2px 10px; } }

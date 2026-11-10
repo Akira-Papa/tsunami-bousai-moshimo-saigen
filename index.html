@@ -7,18 +7,22 @@
   <meta name="description" content="地図で選んだ地点の街に、仮定の津波が液体として押し寄せる様子を、浅水方程式の物理計算（WebGPU）で再現します。予測ではありません。" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e2233'/%3E%3Cpath d='M6 40c8-10 16-14 24-10 6 3 8 9 16 9 5 0 9-3 12-6v19H6z' fill='%234fb3d9'/%3E%3Cpath d='M14 38V20h7v18M26 34V14h8v20M38 38V24h6v14' fill='%23e9eef2'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- 文字の見た目だけの読み込み。届かなくても画面は止めない（端末の文字で表示する） -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" media="print" onload="this.media='all'" />
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
   <!-- 1. 地点を選ぶ -->
   <section id="pick" class="screen active" aria-label="地点を選ぶ">
     <div id="map"></div>
+    <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>
     <aside class="card pick-card">
+      <p class="quake" role="note"><b>強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ避難を。</b><span>このサイトは仮定の再現で、予測ではありません。</span></p>
       <header>
-        <p class="eyebrow">WebGPU 物理シミュレーション</p>
+        <p class="eyebrow">公式想定の確認 ＋ 3Dの物理シミュレーション</p>
         <h1>津波防災 <span>もしも再現</span></h1>
-        <p class="lead">地図で地点を選ぶと、その街に<strong>仮定の津波</strong>が水として押し寄せ、建物にぶつかり、道を流れる様子を物理計算で再現します。</p>
+        <p class="lead">地図で地点を選ぶと、<strong>公式の浸水想定</strong>と<strong>津波から逃げる場所</strong>が出ます。さらに、その街に<strong>仮定の津波</strong>が水として押し寄せる様子を、物理計算で再現できます。</p>
       </header>
       <form id="search" class="search" autocomplete="off">
         <input id="q" type="search" placeholder="住所・地名で探す（例：高知市種崎）" aria-label="住所・地名で探す" />
@@ -27,9 +31,16 @@
       <ul id="results" class="results" hidden></ul>
       <div class="presets" id="presets" aria-label="よく使う地点"></div>
       <p class="hint">または地図をクリック（タップ）して地点を選びます。</p>
+      <p id="gpu-note" class="info" hidden>この端末（ブラウザ）では、3Dの再現は使えません。<b>公式想定と逃げる場所は、このまま見られます。</b><small>3Dの再現は WebGPU に対応したブラウザ（Chrome・Edge 113以降、Safari 26以降）で動きます。</small></p>
 
       <div id="sel" class="sel" hidden>
         <div class="sel-place"><span id="sel-name">—</span><small id="sel-sub"></small></div>
+        <p id="sel-zero" class="zero" hidden></p>
+        <section id="brief" class="brief" aria-label="この地点の公式想定と、津波から逃げる場所" hidden></section>
+        <p id="brief-live" class="sr-only" role="status" aria-live="polite"></p>
+
+        <div id="sim-setup" class="sim-setup">
+        <h2 class="setup-h">3Dで再現する<small>仮定の津波を、この街に流してみる</small></h2>
         <div class="sel-row">
           <div>
             <label for="H" class="k">海の高さ（海岸での津波の高さ・仮定）</label>
@@ -38,6 +49,11 @@
           <input id="H" type="range" min="1" max="30" step="0.5" value="5" aria-describedby="Hsrc" />
         </div>
         <p id="Hsrc" class="src"></p>
+        <p id="cond-line" class="cond-line"></p>
+        <p id="cond-warn" class="warn" hidden></p>
+        <details id="adv" class="adv">
+        <summary>くわしい条件を変える<small>（潮位・防潮壁・木造家屋・計算の細かさ）</small></summary>
+        <p class="src">T.P. は東京湾の平均海面を0mとした高さ（標高と同じ基準）です。天端（てんば）は防潮壁のいちばん上の高さです。</p>
         <div class="sel-row">
           <div class="rowline"><label for="tide" class="k">はじめの潮位（満潮）</label><output id="tideOut" class="mini">0.0m</output></div>
           <input id="tide" type="range" min="0" max="2" step="0.1" value="0" aria-describedby="tideSrc" />
@@ -58,10 +74,12 @@
             <option value="1024">高精細（格子 1024²・約1.5m）</option>
           </select>
         </div>
-        <p id="sel-zero" class="zero" hidden></p>
+        </details>
         <div class="go-bar">
           <p id="sel-warn" class="warn" hidden></p>
-          <button id="go" class="primary">この地点で再現する</button>
+          <button id="go" class="primary" aria-describedby="go-why">この地点で、3Dで再現する</button>
+          <p id="go-why" class="src" hidden></p>
+        </div>
         </div>
       </div>
 
@@ -80,7 +98,8 @@
         </svg>
         <figcaption>「海の高さ」は海岸での値、「ここの深さ」は選んだ地点の地面からの深さです。</figcaption>
       </figure>
-      <p class="fineprint"><b>防潮壁は国土地理院の「堤防等に接する海岸線・河岸」の位置に、指定した高さで入れます（実際の防潮壁は岸壁より内陸側にある区間もあります）。沖の高潮防波堤は含みません。</b>幅のある堤防や盛土（線路・道路）は地形として効きます。<br />仮定の再現であり、予測ではありません。地形・建物・津波の形を単純化しています。避難の判断には自治体のハザードマップを使ってください。</p>
+      <p class="fineprint"><b>防潮壁は国土地理院の「堤防等に接する海岸線・河岸」の位置に、指定した高さで入れます（実際の防潮壁は岸壁より内陸側にある区間もあります）。沖の高潮防波堤は含みません。</b>幅のある堤防や盛土（線路・道路）は地形として効きます。<br />仮定の再現であり、予測ではありません。地形・建物・津波の形を単純化しています。避難の判断には、自治体のハザードマップと、津波警報・注意報を使ってください。</p>
+      <p class="fineprint"><b>数字の出典</b>：公式想定＝内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）ケース01の浸水データを100mに集約。深さの目安＝内閣府 南海トラフ巨大地震の被害想定の手法（浸水深30cm以上で死者が発生し始め、1mでは津波に巻き込まれた人のすべてが亡くなると仮定）、気象庁（20〜30cm程度でも速い流れに巻き込まれるおそれ。木造家屋は2mで全面破壊に至る目安）。逃げる場所＝国土地理院「指定緊急避難場所データ」（津波）。確認日 2026-11-10。</p>
     </aside>
   </section>
 
@@ -97,15 +116,15 @@
       </ol>
       <div class="bar"><i id="load-bar"></i></div>
       <p id="load-msg" class="msg">準備中…</p>
-      <p class="tip">豆知識：浸水深 <b>0.3m</b> で避難行動が難しくなり、<b>1m</b> を超えると命の危険が急激に高まります（内閣府）。</p>
-      <button id="load-cancel" class="ghost">地点選択に戻る</button>
+      <p class="tip">内閣府の被害想定は、浸水深 <b>0.3m</b> で津波に巻き込まれた人から死者が出始め、<b>1m</b> では全員が亡くなると仮定しています。気象庁は、20〜30cm でも速い流れに巻き込まれるおそれがあるとしています。</p>
+      <p class="load-btns"><button id="load-retry" class="primary" hidden>もう一度読み込む</button><button id="load-cancel" class="ghost">地点選択に戻る（公式想定は見られます）</button></p>
     </div>
   </section>
 
   <!-- 3. シミュレーション -->
   <section id="sim" class="screen" aria-label="シミュレーション">
     <div id="stage3d"></div>
-    <div class="badge" role="note">もしも再現・予測ではありません</div>
+    <div class="badge" role="note"><b>もしも再現・予測ではありません</b><span>強い揺れ・長い揺れを感じたら、すぐ高い所へ</span></div>
     <div class="topbar">
       <div class="place"><b id="t-name">—</b><span id="t-h"></span></div>
       <button id="back" class="ghost small">地点を選び直す</button>
@@ -114,8 +133,12 @@
       <div class="hud-main">
         <span class="k">ここの深さ（いま）</span>
         <div class="big"><output id="h-now">0.00</output><span>m</span></div>
-        <div id="h-say" class="say">この地点にはまだ届いていません</div>
+        <div id="h-say" class="say">この仮定ではまだ届いていません</div>
+        <p id="h-say-live" class="sr-only" role="status" aria-live="polite"></p>
+        <div class="hud-off"><span class="k">公式想定（この付近の最大）</span><output id="h-off">—</output></div>
       </div>
+      <button type="button" id="hud-more" class="ghost small hud-more" aria-expanded="false" aria-controls="hud-detail">くわしく</button>
+      <div id="hud-detail" class="hud-detail">
       <div class="gauge" aria-hidden="true">
         <div class="gauge-fill" id="gauge-fill"></div>
         <i style="--p:.1">0.3m</i><i style="--p:.333">1m</i><i style="--p:.667">2m</i>
@@ -124,17 +147,18 @@
         <div><dt>この再現での最大</dt><dd><output id="h-max">—</output></dd></div>
         <div><dt>流れの速さ</dt><dd><output id="h-v">—</output></dd></div>
         <div><dt id="h-arr-k">水の先端まで</dt><dd><output id="h-arr">—</output></dd></div>
-        <div><dt>公式想定（100m集約）</dt><dd><output id="h-off">—</output></dd></div>
         <div><dt>地面の標高</dt><dd><output id="h-gnd">—</output></dd></div>
         <div><dt>海の高さは地面から</dt><dd><output id="h-rel">—</output></dd></div>
       </dl>
       <p id="h-note" class="hnote"></p>
+      </div>
     </aside>
     <div class="dock card">
       <div class="time">
-        <span class="k">押し波の開始から</span>
+        <span class="k">再現の時計</span>
         <output id="clock">00:00</output>
         <span id="phase" class="phase">待機</span>
+        <small class="clock-note">計算の始まりからの時間です。実際に津波が来る時刻ではありません。</small>
       </div>
       <div class="ctl">
         <button id="play" class="primary round" aria-label="再生">▶</button>
@@ -145,13 +169,16 @@
           <button data-v="wide" hidden>広域</button><button data-v="over" class="on">俯瞰</button><button data-v="pin">地点</button><button data-v="eye">目線</button><button data-v="impact">衝突</button>
         </div>
       </div>
+      <details id="disp" class="disp" open>
+      <summary>表示の切りかえ</summary>
       <div class="toggles">
         <label><input type="checkbox" id="tg-depth" /> 深さで色分け（塗り＝この再現）</label>
         <label><input type="checkbox" id="tg-off" /> 公式想定を重ねる（斜線）</label>
         <label><input type="checkbox" id="tg-spray" checked /> 飛沫</label>
         <label><input type="checkbox" id="tg-calm" /> 控えめ表示</label>
-        <button id="result-btn" class="ghost small">結果を見る</button>
       </div>
+      </details>
+      <button id="result-btn" class="primary small result-btn">結果と、このあとすること</button>
       <div id="legend" hidden>
         <div class="legend-k"><span>深さ（m）</span><span><i class="sw fill"></i>塗り＝この再現</span><span><i class="sw hatch"></i>斜線＝公式想定（内閣府2025）</span></div>
         <div class="legend"><span style="--c:#ffffb3">〜0.3</span><span style="--c:#f7f5a9">0.3〜1</span><span style="--c:#ffd8c0">1〜2</span><span style="--c:#ffb7b7">2〜5</span><span style="--c:#ff9191">5〜10</span><span style="--c:#f285c9">10〜20</span><span style="--c:#dc7adc">20〜</span></div>
@@ -164,34 +191,54 @@
     <div id="result" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="r-title">
       <div class="card result-card">
         <button class="close" id="r-close" aria-label="閉じる">×</button>
-        <h2 id="r-title">結果の比較</h2>
-        <p class="src" id="r-sub"></p>
-        <div class="cols">
-          <section>
-            <h3>この再現（仮定）</h3>
-            <dl id="r-sim"></dl>
-          </section>
-          <section>
-            <h3>内閣府 2025 想定（ケース01）</h3>
-            <dl id="r-off"></dl>
-          </section>
-        </div>
-        <p class="note" id="r-note"></p>
-        <p class="call">強い揺れを感じたら、この結果を待たずに高い所へ。<br />近くの高い場所を、いま地図で確かめてみませんか？</p>
-        <p class="links"><a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noopener">重ねるハザードマップ（国土地理院）</a></p>
-        <p class="fineprint" id="r-read"></p>
-        <p class="fineprint" id="r-credits"><b>データの出典</b>：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（地理院タイル：淡色地図・写真・標高タイル、国土地理院ベクトルタイル提供実験、住所検索）。地理院タイル（標高タイル）を加工して作成。<span id="r-credit-plateau"><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成。</span>内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データ（ケース01）を100mに集約加工して作成。内閣府 防災情報のページ「市区町村別最大津波高一覧」（2025）を加工して作成。「国土数値情報（行政区域データ）」（国土交通省）、総務省「全国地方公共団体コード」をもとに作成。潮位・防潮壁の既定値は名古屋港管理組合・愛知県の公表値。</p>
+        <h2 id="r-title">結果と、このあとすること</h2>
+        <section id="r-act" class="r-act" aria-label="このあとすること">
+          <p class="call"><b>強い揺れや、弱くても長い揺れを感じたら、この画面を待たずに、すぐ高い所へ避難を。</b><span>津波はくり返し来ます。警報・注意報が解除されるまで、戻らないでください。</span></p>
+          <div id="r-key" class="r-key"></div>
+          <h3 class="brief-h3">津波から逃げる場所<small>指定緊急避難場所（津波）・1km以内の近い順</small></h3>
+          <div id="r-evac"></div>
+          <p class="brief-links">
+            <a id="r-hazard" class="linkbtn" href="https://disaportal.gsi.go.jp/" target="_blank" rel="noopener">重ねるハザードマップで、この地点を確かめる<small>（国土地理院・別の画面が開きます）</small></a>
+            <button type="button" class="ghost" id="r-memo">わが家の避難メモを書く</button>
+            <button type="button" class="ghost" id="r-share">この地点と条件を家族に送る</button>
+          </p>
+          <p id="r-share-msg" class="src" role="status" aria-live="polite"></p>
+        </section>
+        <details id="r-detail" class="r-detail" open>
+          <summary>数字の比較と、計算の条件を見る</summary>
+          <p class="src" id="r-sub"></p>
+          <div class="cols">
+            <section>
+              <h3>この再現（仮定）</h3>
+              <dl id="r-sim"></dl>
+            </section>
+            <section>
+              <h3>内閣府 2025 想定（ケース01）</h3>
+              <dl id="r-off"></dl>
+            </section>
+          </div>
+          <p class="note" id="r-note"></p>
+          <p class="fineprint" id="r-read"></p>
+          <p class="fineprint" id="r-credits"><b>データの出典</b>：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>（地理院タイル：淡色地図・写真・標高タイル、国土地理院ベクトルタイル提供実験、住所検索、指定緊急避難場所データ）。地理院タイル（標高タイル）を加工して作成。<span id="r-credit-plateau"><a href="https://www.mlit.go.jp/plateau/" target="_blank" rel="noopener">3D都市モデル（Project PLATEAU）</a>（国土交通省）を加工して作成。</span>内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データ（ケース01）を100mに集約加工して作成。内閣府 防災情報のページ「市区町村別最大津波高一覧」（2025）を加工して作成。「国土数値情報（行政区域データ）」（国土交通省）、総務省「全国地方公共団体コード」をもとに作成。潮位・防潮壁の既定値は名古屋港管理組合・愛知県の公表値。深さの目安は内閣府 南海トラフ巨大地震の被害想定の手法と、気象庁の資料による。</p>
+        </details>
       </div>
     </div>
   </section>
 
-  <section id="nogpu" class="screen" aria-label="非対応">
-    <div class="card load-card">
-      <h2>この端末では再現を表示できません</h2>
-      <p>この再現は WebGPU（Chrome / Edge 113 以降、Safari 26 以降）で動きます。お使いのブラウザでは使えませんでした。</p>
-      <p>地域の浸水想定は、<a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noopener">重ねるハザードマップ（国土地理院）</a> で確認できます。</p>
+  <!-- わが家の避難メモ（どの画面からも開く。端末の中にだけ保存し、どこにも送らない） -->
+  <div id="memo" class="modal memo-modal" hidden role="dialog" aria-modal="true" aria-labelledby="memo-title">
+    <div class="card result-card">
+      <button class="close" id="memo-close" aria-label="閉じる">×</button>
+      <h2 id="memo-title">わが家の避難メモ</h2>
+      <p class="note">家族で話して、書いてみてください。書いたあと、<b>その場所まで実際に歩いて、かかる時間を測る</b>と確かです（夜や雨の日も）。</p>
+      <p class="src" id="memo-place"></p>
+      <div id="memo-fields" class="memo-fields"></div>
+      <p class="src">書いた内容は、この端末の中にだけ保存します（どこにも送りません）。ブラウザの履歴やデータを消すと、消えることがあります。<b>印刷して、家族で持ってください。</b>名前を書いた紙を貼る場所には気をつけてください。</p>
+      <p class="brief-links"><button type="button" class="primary" id="memo-print">印刷する（PDFに保存もできます）</button><span id="memo-saved" class="src" role="status" aria-live="polite"></span></p>
+      <p class="src">印刷には、書いた内容・公式想定・指定緊急避難場所を載せます。3Dの再現の数字は載せません。</p>
     </div>
-  </section>
+  </div>
+  <div id="print-sheet" class="print-sheet" aria-hidden="true"></div>
 
   <script type="module" src="./src/main.js"></script>
 </body>
