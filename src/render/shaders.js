@@ -99,7 +99,7 @@ fn w_fresnel(c: f32) -> f32 {
 //  D  foam is soft, uneven patches (thresholded fbm), not equal-sized cells
 export const WATER_FN = /* wgsl */ `
 fn w_water(p: vec3f, eye: vec3f, L: vec3f, nIn: vec2f, h: f32, turb: f32, foamIn: f32, flow: vec2f,
-           env: vec4f, pt: texture_2d<f32>, ps: sampler, ct: texture_2d<f32>, cs: sampler,
+           env: vec4f, play: f32, pt: texture_2d<f32>, ps: sampler, ct: texture_2d<f32>, cs: sampler,
            bt: texture_2d<f32>, bs: sampler) -> vec4f {
   let D = env.x;
   let time = env.y;
@@ -107,12 +107,18 @@ fn w_water(p: vec3f, eye: vec3f, L: vec3f, nIn: vec2f, h: f32, turb: f32, foamIn
   let fd = select(vec2f(1.0, 0.0), flow / max(sp, 1e-3), sp > 0.05);
   let fast = smoothstep(0.3, 2.5, sp);
   // two-phase flow map: each layer rides the current for T seconds, then hands over to the other
-  let T = 3.0;
+  // The pattern is carried at the speed the water is SHOWN at (play = playback factor, at most ×4 here; the flow
+  // marks carry the rest) — before, the water ran at ×20 while its ripples crept along in real time (オルテガ).
+  // The carry is capped at 8 m: beyond that the velocity differences between neighbours tear the pattern.
+  let T = 1.6;
   let ph0 = fract(time / T);
   let ph1 = fract(time / T + 0.5);
   let wgt = abs(ph0 - 0.5) * 2.0;            // weight of layer 1 (layer 0 is weighted 1 − wgt)
-  let a0 = flow * ((ph0 - 0.5) * T);         // how far layer 0 has been carried (zero at its full weight)
-  let a1 = flow * ((ph1 - 0.5) * T);
+  let carry = flow * clamp(play, 1.0, 4.0);
+  let c0 = carry * ((ph0 - 0.5) * T);        // how far layer 0 has been carried (zero at its full weight)
+  let c1 = carry * ((ph1 - 0.5) * T);
+  let a0 = c0 * min(1.0, 8.0 / max(length(c0), 1e-3));
+  let a1 = c1 * min(1.0, 8.0 / max(length(c1), 1e-3));
   let x0 = p.xz - a0;
   let x1 = p.xz - a1 + vec2f(31.7, 12.3);
 
@@ -269,13 +275,21 @@ fn w_water(p: vec3f, eye: vec3f, L: vec3f, nIn: vec2f, h: f32, turb: f32, foamIn
   col = mix(col, foamCol, cover * 0.92);
   col *= mix(1.0, 0.80, nearB * (1.0 - cover));   // water touching a standing wall: a soft contact shade
 
+  // the reach of the flood: a thin pale line along the 5 cm depth contour, on land only. It is the edge of the
+  // COMPUTED sheet of water (a 1 cm contour would follow the grid — 氷室's dam-break measurement), drawn at a
+  // steady width: |hp − 0.05| / |∇hp| is the distance to that contour in metres.
+  let gh = length(vec2f(dpdx(hp), dpdy(hp))) / max(fw, 1e-4);
+  let dLine = abs(hp - 0.05) / max(gh, 1e-3);
+  let line = (1.0 - smoothstep(0.30 + 0.7 * fw, 0.60 + 1.5 * fw, dLine)) * smoothstep(0.75, 0.95, landW / 11.0) * (1.0 - nearB);
+  col = mix(col, vec3f(0.80, 0.86, 0.90) * (W_SUN * 0.9 * max(L.y, 0.2) * shadow + vec3f(0.36, 0.41, 0.46)), line * 0.8);
+
   // optional hazard-map colouring of the depth (land only)
   if (env.w > 0.5 && bed.z < 0.5) {
     let dc = pow(w_depthColor(h), vec3f(2.2)) * 1.35; // same hue as the legend, not lit by the sun
     col = mix(col, dc, 0.9);
   }
   // shallow margins thin out → the flooded ground shows through
-  let a = smoothstep(0.0, 0.10, hp) * smoothstep(0.0, 0.004, h);
+  let a = max(smoothstep(0.0, 0.10, hp) * smoothstep(0.0, 0.004, h), line * 0.85 * step(0.0, hp) * smoothstep(0.0, 0.004, h));
   return vec4f(col, a);
 }
 `;

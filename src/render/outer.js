@@ -72,7 +72,7 @@ export function createOuterLayer({ region, solver, offset, innerL, uL, uEnvInner
     const out = wFn({
       p: positionWorld.sub(off3), eye: cameraPosition.sub(off3), L: uL,
       nIn: varying(r.yz, 'vOWN'), h: varying(r.w, 'vOWH'), turb: varying(r2.y, 'vOWC'), foamIn: varying(r2.x, 'vOWF'), flow: varying(r2.zw, 'vOWU'),
-      env: uEnv, pt, ps: sampler(pt), ct, cs: sampler(ct), bt, bs: sampler(bt),
+      env: uEnv, play: float(1), pt, ps: sampler(pt), ct, cs: sampler(ct), bt, bs: sampler(bt),
     });
     mat.colorNode = out.xyz;
     mat.opacityNode = select(inner, float(0), out.w);

@@ -318,16 +318,6 @@ export function createSolver(renderer, region, opts = {}) {
     const wetness = select(wet, float(1), max(told.z.sub(dtF.div(900)), 0));
     Tout.element(k).assign(vec4(select(wet, foam, float(0)), select(wet, turb, told.y.mul(0.999)), wetness, eta));
 
-    // maxima & arrival (land cells that started dry)
-    const m = M.element(k);
-    const mm = vec4(
-      max(m.x, select(wet, h, float(0))),
-      select(wet.and(m.y.greaterThan(1e8)), uFrame.y, m.y),
-      max(m.z, select(wet, sp, float(0))),
-      max(m.w, select(wet, eta, float(-1e3))),
-    );
-    M.element(k).assign(mm);
-
     // spray: violent impacts and breaking fronts throw droplets
     const energy = smoothstep(2.0, 6.0, imp).add(smoothstep(1.4, 2.6, fr).mul(smoothstep(0.6, 2.0, h)).mul(0.5));
     const r = hash(vec2(float(k).mul(0.0137), uFrame.w.mul(0.731)));
@@ -347,6 +337,28 @@ export function createSolver(renderer, region, opts = {}) {
     });
   })().compute(NN);
   const aux01 = makeAux(T0, T1), aux10 = makeAux(T1, T0);
+
+  // maxima & arrival: recorded every CHK sub-steps (a fixed schedule), not once per drawn frame — otherwise the
+  // record (and the arrival time) would depend on the playback speed and on how fast this machine draws
+  const uClock = uniform(0);
+  const maxKernel = Fn(() => {
+    const { k } = ij();
+    const q = A.element(k);
+    const h = q.x;
+    const wet = h.greaterThan(0.005);
+    // the peak speed counts only where the water is at least 5 cm deep: in the film at the very tip (5 mm – 1 cm)
+    // hu / h is noise, and whether a record caught that instant used to decide the number (review AB1, 軽微-3)
+    const deep = h.greaterThan(0.05);
+    const sp = length(vec2(q.y, q.z)).div(max(h, 0.05));
+    const eta = h.add(S.element(k).x);
+    const m = M.element(k);
+    M.element(k).assign(vec4(
+      max(m.x, select(wet, h, float(0))),
+      select(wet.and(m.y.greaterThan(1e8)), uClock, m.y),
+      max(m.z, select(deep, sp, float(0))),
+      max(m.w, select(wet, eta, float(-1e3))),
+    ));
+  })().compute(NN);
 
   // render packing: level η, normal, drawn depth; extend the level one cell under walls / onto dry
   // neighbours so the surface meets walls without dipping.
@@ -373,8 +385,11 @@ export function createSolver(renderer, region, opts = {}) {
     const gz = lv(sN).sub(lv(nN)).div(2 * dx);
     R.element(k).assign(vec4(drawEta, gx.negate(), gz.negate(), drawH));
     const t = Tcur.element(k);
-    const u = select(selfWet, q.y.div(max(h, 0.01)), float(0));
-    const v = select(selfWet, q.z.div(max(h, 0.01)), float(0));
+    // the flow shown on screen: down to a 2 mm film, divided by at least 3 cm (氷室: hu/(h+0.05) would cut a 2 cm
+    // front to 30 % of its speed; hu/max(h, 3 cm) keeps it). Display only — the solver never reads R2.
+    const film = h.greaterThan(0.002).and(s.y.lessThan(0.5));
+    const u = select(film, q.y.div(max(h, 0.03)), float(0));
+    const v = select(film, q.z.div(max(h, 0.03)), float(0));
     R2.element(k).assign(vec4(t.x, t.y, u, v));
     const m = M.element(k);
     textureStore(surfTex, uvec2(uint(i), uint(j)), vec4(drawH, gx.negate(), gz.negate(), t.y)).toWriteOnly();
@@ -405,6 +420,68 @@ export function createSolver(renderer, region, opts = {}) {
     });
   })().compute(PARTICLES);
 
+  // ── flow marks: thin streaks that ride the computed flow (direction = bright head, speed = length) ──
+  // x, z, age, life. life > 0: alive for `life` seconds of screen time; life < 0: resting for −life seconds.
+  // A mark whose rest is over tries ONE random cell and starts only where water really flows, so the marks
+  // gather where the flow is (and their density stays bounded: nothing piles up in a narrow jet).
+  const MARKS = opts.marks ?? (N >= 768 ? 32768 : 16384);
+  const FM = instancedArray(MARKS, 'vec4');
+  const FV = instancedArray(MARKS, 'vec4'); // u, v (m/s), water level η (m), 1 = drawn
+  const uMk = uniform(new THREE.Vector4(0, 0, 0, 0)); // screen dt (s), simulated seconds the marks travel, frame id, —
+  const markUpdate = Fn(() => {
+    const id = instanceIndex;
+    const p = FM.element(id).toVar();
+    const seed = float(id).mul(0.618034);
+    const cellOf = (x, z) => clamp(int(floor(z.add(L / 2).div(dx))), 0, N - 1).mul(N).add(clamp(int(floor(x.add(L / 2).div(dx))), 0, N - 1));
+    const px = p.x.toVar(), pz = p.y.toVar(), age = p.z.add(uMk.x).toVar(), life = p.w.toVar();
+    const r3 = hash(vec2(seed.add(3.9), uMk.z.mul(0.291)));
+    If(age.greaterThanEqual(abs(life)), () => {
+      const r1 = hash(vec2(seed, uMk.z.mul(0.731))), r2 = hash(vec2(seed.add(7.3), uMk.z.mul(0.517)));
+      const nx = r1.mul(L - 4 * dx).sub(L / 2 - 2 * dx), nz = r2.mul(L - 4 * dx).sub(L / 2 - 2 * dx);
+      const k = cellOf(nx, nz);
+      const f = R2.element(k);
+      age.assign(0);
+      If(A.element(k).x.greaterThan(0.05).and(S.element(k).y.lessThan(0.5)).and(length(f.zw).greaterThan(0.3)), () => {
+        px.assign(nx); pz.assign(nz); life.assign(r3.mul(2).add(3));
+      }).Else(() => { life.assign(r3.mul(-1.5).sub(0.5)); });
+    });
+    const k0 = cellOf(px, pz);
+    const f0 = R2.element(k0).zw.toVar();
+    If(life.greaterThan(0), () => {
+      const out = abs(px).greaterThan(L / 2 - dx).or(abs(pz).greaterThan(L / 2 - dx));
+      If(out.or(A.element(k0).x.lessThan(0.03)).or(S.element(k0).y.greaterThan(0.5)).or(length(f0).lessThan(0.1)), () => {
+        life.assign(r3.mul(-1.5).sub(0.5)); age.assign(0);
+      }).Else(() => {
+        // midpoint rule along the computed flow
+        const fm = R2.element(cellOf(px.add(f0.x.mul(uMk.y).mul(0.5)), pz.add(f0.y.mul(uMk.y).mul(0.5)))).zw;
+        px.addAssign(fm.x.mul(uMk.y)); pz.addAssign(fm.y.mul(uMk.y));
+      });
+    });
+    const k1 = cellOf(px, pz);
+    FM.element(id).assign(vec4(px, pz, age, life));
+    FV.element(id).assign(vec4(R2.element(k1).zw, R.element(k1).x, select(life.greaterThan(0), float(1), float(0))));
+  })().compute(MARKS);
+
+  // the coastal level for the wave controller, read at FIXED sub-step numbers (see step()): own counters,
+  // so the display probes below never disturb it. +0.5 rounds (a plain cast would bias the mean by −5 mm).
+  const ctrlSum = instancedArray(2, 'uint').toAtomic();
+  const ctrlFront = instancedArray(1, 'uint').toAtomic();
+  const ctrlReset = Fn(() => { atomicStore(ctrlSum.element(0), uint(0)); atomicStore(ctrlSum.element(1), uint(0)); atomicStore(ctrlFront.element(0), uint(0xffffffff)); })().compute(1);
+  const ctrlProbe = Fn(() => {
+    const k = int(CI.element(instanceIndex));
+    const q = A.element(k);
+    If(q.x.greaterThan(0.01), () => {
+      atomicAdd(ctrlSum.element(0), uint(clamp(q.x.add(S.element(k).x).add(50), 0, 200).mul(100).add(0.5)));
+      atomicAdd(ctrlSum.element(1), uint(1));
+    });
+  })().compute(coastIdx.length);
+  const ctrlFrontProbe = Fn(() => {
+    const { k, i, j } = ij();
+    If(S.element(k).w.greaterThan(0.5).and(A.element(k).x.greaterThan(0.05)), () => {
+      atomicMin(ctrlFront.element(0), uint(length(vec2(float(i).sub(uPin.x), float(j).sub(uPin.y))).mul(dx * 10)));
+    });
+  })().compute(NN);
+
   // max η over the near-shore band (η + 100 m keeps the float positive → uint order = float order)
   const coastReset = Fn(() => { atomicStore(coastSum.element(0), uint(0)); atomicStore(coastSum.element(1), uint(0)); atomicStore(coastMax.element(0), uint(0)); atomicStore(frontMin.element(0), uint(0xffffffff)); })().compute(1);
   const frontProbe = Fn(() => {
@@ -426,14 +503,26 @@ export function createSolver(renderer, region, opts = {}) {
   })().compute(coastIdx.length);
 
   // 越流破堤: a levee cell carrying water over its crest collapses to the ground it stands on
+  // (opts.breachTime > 0 is a SENSITIVITY EXPERIMENT only — the crest then comes down over that many seconds
+  //  instead of at once; the default, and everything the site shows, is the instant collapse.)
+  const uBr = uniform(1); // share of the crest that goes per call of this kernel (experiment)
   const breachKernel = Fn(() => {
     const k = int(LI.element(instanceIndex));
     const lv = LV.element(k);
-    If(lv.x.greaterThan(0.5).and(lv.w.lessThan(0.5)).and(A.element(k).x.greaterThan(0.05)), () => {
-      LV.element(k).assign(vec4(lv.x, lv.y, lv.z, 1));
-      S.element(k).assign(vec4(lv.y, S.element(k).y, S.element(k).z, S.element(k).w));
-      atomicAdd(breachCount.element(0), uint(1));
-    });
+    if (opts.breachTime > 0) {
+      If(lv.x.greaterThan(0.5).and(lv.w.lessThan(1)).and(A.element(k).x.greaterThan(0.05).or(lv.w.greaterThan(0))), () => {
+        If(lv.w.lessThanEqual(0), () => { atomicAdd(breachCount.element(0), uint(1)); });
+        const w = min(lv.w.add(uBr), 1);
+        LV.element(k).assign(vec4(lv.x, lv.y, lv.z, w));
+        S.element(k).assign(vec4(mix(max(lv.z, lv.y), lv.y, w), S.element(k).y, S.element(k).z, S.element(k).w));
+      });
+    } else {
+      If(lv.x.greaterThan(0.5).and(lv.w.lessThan(0.5)).and(A.element(k).x.greaterThan(0.05)), () => {
+        LV.element(k).assign(vec4(lv.x, lv.y, lv.z, 1));
+        S.element(k).assign(vec4(lv.y, S.element(k).y, S.element(k).z, S.element(k).w));
+        atomicAdd(breachCount.element(0), uint(1));
+      });
+    }
   })().compute(Math.max(1, leveeIdx.length));
 
   // 木造家屋の流失 (same mechanism as the breach above, per building):
@@ -488,26 +577,127 @@ export function createSolver(renderer, region, opts = {}) {
     return -trough * h * (1 - s(Math.min(1, back / 240)));
   }
 
-  /** advance by `steps` sub-steps (each = one SSP-RK2 step) */
+  // ── stepping on a fixed schedule ──
+  // Everything that feeds back into the water happens at fixed SUB-STEP NUMBERS, never "once per drawn frame":
+  //   every CH sub-steps    the offshore level target is refreshed
+  //   every CHK sub-steps   maxima / arrival are recorded, levees may breach, wooden houses may wash away
+  //   every CTRL sub-steps  (~15 simulated seconds) the coastal level is read back and the wave gain adjusted;
+  //                         stepping WAITS for that readback (a frame or two) before it goes on
+  // So the result no longer depends on the playback speed or on how fast this machine draws. Before this,
+  // the same conditions gave a maximum depth that differed by 2–4 % and a peak flow speed that differed by 7–8 %
+  // between runs and playback speeds (measured: docs/fable52/calc/before*_numbers.json; 11_…設計.md, B1).
+  const CH = Math.max(1, Math.min(16, Math.round(0.35 / dt)));
+  const CHK = CH * Math.ceil(4 / CH);
+  const CTRL = CHK * Math.max(1, Math.round(15 / (dt * CHK)));
+  const needsCtrl = !nest; // a nested square follows the wide one; it has no wave of its own to steer
+  if (opts.breachTime > 0) uBr.value = Math.min(1, (CHK * dt) / opts.breachTime);
+  // the coastal level is READ at every multiple of CTRL and its correction TAKES EFFECT exactly LAG sub-steps
+  // later (≈ 5 simulated seconds). The readback has many drawn frames to arrive in, so the water does not have to
+  // stop and wait for it (waiting at the read itself froze the water for 1–2 frames every 15 simulated seconds).
+  // Only if it has still not arrived LAG sub-steps later does step() wait — the result stays the same either way.
+  const LAG = CH * Math.max(1, Math.round(CTRL / 3 / CH));
+  let nSub = 0, ctrlPending = null, stopFront = 0;
+
+  /** advance by up to `steps` sub-steps (each = one SSP-RK2 step). Returns how many were taken — fewer (or 0)
+   *  while the solver waits for the coastal-level readback at a control point. */
   function step(steps, sprayRate = 1) {
-    if (steps <= 0) return;
-    uWave.value.x = etaTarget(time + (steps * dt) / 2);
-    const list = [];
-    for (let s = 0; s < steps; s++) list.push(stage1, stage2);
-    renderer.compute(list);
-    time += steps * dt;
+    if (steps <= 0) return 0;
+    let done = 0;
+    while (done < steps) {
+      if (nSub % CH === 0) {
+        if (needsCtrl && nSub > 0) {
+          if (nSub % CTRL === 0 && !ctrlPending) control();
+          if (ctrlPending && nSub === ctrlPending.at + LAG) {
+            if (!ctrlPending.done) break; // the readback is late: wait for it (rare)
+            const p = ctrlPending; ctrlPending = null;
+            wave.gain = Math.min(1.3, Math.max(0.25, wave.gain * p.factor));
+            if (p.front != null) coast.ctrlFront = p.front;
+            // a nested pair wakes its fine square at exactly this sub-step (sim/advance.js): hand control back
+            if (stopFront > 0 && coast.ctrlFront < stopFront) { stopFront = 0; break; }
+          }
+        }
+        uWave.value.x = etaTarget((nSub + CH / 2) * dt);
+      }
+      const m = Math.min(steps - done, CH - (nSub % CH));
+      const list = [];
+      for (let k = 0; k < m; k++) list.push(stage1, stage2);
+      renderer.compute(list);
+      nSub += m; done += m;
+      time = nSub * dt;
+      if (nSub % CHK === 0) {
+        uClock.value = time;
+        renderer.compute(maxKernel);
+        if (breach && leveeIdx.length) renderer.compute(breachKernel);
+        if (wash) renderer.compute([washDetect, washApply, washTally]);
+      }
+    }
+    if (!done) return 0;
+    auxDt += done * dt; auxSpray = sprayRate;
+    return done;
+  }
+  /** display-only fields (foam, turbidity, spray): once per DRAWN frame, for everything the water advanced since
+   *  the last one — however many times step() was called in between (a nested pair calls it per sub-step).
+   *  Nothing here feeds back into the water, so how often it runs cannot change the result. */
+  let auxDt = 0, auxSpray = 1;
+  function present() {
+    if (!(auxDt > 0)) return;
     frameNo++;
-    uFrame.value.set(steps * dt, time, sprayRate, frameNo % 9973);
+    uFrame.value.set(auxDt, time, auxSpray, frameNo % 9973);
     renderer.compute(parity ? aux10 : aux01);
-    if (breach && leveeIdx.length) renderer.compute(breachKernel);
-    if (wash) renderer.compute([washDetect, washApply, washTally]);
-    parity ^= 1;
+    parity ^= 1; auxDt = 0;
   }
   // coastal level readback (4 bytes, non-blocking) + controller
   const rbC = new THREE.ReadbackBuffer(4), rbF = new THREE.ReadbackBuffer(4), rbS = new THREE.ReadbackBuffer(8), rbB = new THREE.ReadbackBuffer(4), rbW = new THREE.ReadbackBuffer(4);
+  const rbCS = new THREE.ReadbackBuffer(8), rbCF = new THREE.ReadbackBuffer(4);
   let cBusy = false, cTick = 0;
-  const coast = { now: NaN, max: -Infinity, front: Infinity, mean: NaN, meanMax: -Infinity, breached: 0, levees: leveeIdx.length, washed: 0, woodHouses: wash ? woodIds.length : 0 };
+  const coast = { now: NaN, max: -Infinity, front: Infinity, ctrlFront: Infinity, ctrlMissed: 0, mean: NaN, meanMax: -Infinity, breached: 0, levees: leveeIdx.length, washed: 0, woodHouses: wash ? woodIds.length : 0 };
   let dead = false;
+  /** the wave controller: reads the coast at sub-step nSub (a multiple of CTRL) and nowhere else; step() applies
+   *  what it found LAG sub-steps later. It must never wait for ever: if the readback throws, or has not arrived
+   *  after CTRL_WAIT ms of real time, the water goes on WITHOUT this correction and the miss is counted
+   *  (coast.ctrlMissed — a run with misses is no longer guaranteed to repeat exactly; the result card says so). */
+  const CTRL_WAIT = 4000;
+  function control() {
+    const tAt = time;
+    const p = ctrlPending = { at: nSub, done: false, factor: 1, front: null };
+    const finish = (missed) => {
+      if (p.done) return;
+      p.done = true; clearTimeout(timer);
+      if (missed && !dead) { coast.ctrlMissed++; console.warn(`[swe] wave control skipped at t=${tAt.toFixed(1)}s (${missed})`); }
+    };
+    const timer = setTimeout(() => finish('no readback'), CTRL_WAIT);
+    try {
+      renderer.compute(ctrlReset);
+      renderer.compute(ctrlProbe);
+      renderer.compute(ctrlFrontProbe);
+      Promise.all([
+        renderer.getArrayBufferAsync(ctrlSum.value, rbCS, 0, 8),
+        renderer.getArrayBufferAsync(ctrlFront.value, rbCF, 0, 4),
+      ]).then(([sm, f]) => {
+        if (dead || p.done) return;
+        const su = new Uint32Array(sm.buffer ?? sm, sm.byteOffset ?? 0, 2);
+        const fu = new Uint32Array(f.buffer ?? f, f.byteOffset ?? 0, 1)[0];
+        p.front = fu === 0xffffffff ? Infinity : fu / 10;
+        if (su[1]) {
+          const mean = su[0] / su[1] / 100 - 50;
+          const sh = shape(tAt);
+          // steer on the near-shore MEAN level (a single reflected peak at a quay would bias the gain low)
+          if (wave.calibrate && sh > 0.35 && tAt < wave.pre + wave.rise + wave.hold) {
+            const want = wave.tide + (wave.H - wave.tide) * sh;
+            const err = (want - wave.tide) / Math.max(mean - wave.tide, 0.05) - 1;
+            // rate per SIMULATED second; the interval is fixed (CTRL sub-steps)
+            const dts = CTRL * dt;
+            // while the wave is still rising the coast lags the boundary by its travel time: never push up then
+            const rising = tAt < wave.pre + wave.rise;
+            const rate = (err < 0 ? 0.012 : rising ? 0 : 0.004) * dts;
+            p.factor = 1 + Math.min(0.3, rate) * Math.max(-0.6, Math.min(0.6, err));
+          }
+        }
+        finish();
+      }).catch((e) => finish(e?.message || 'readback failed')).finally(() => { rbCS.release?.(); rbCF.release?.(); });
+    } catch (e) { finish(e?.message || 'compute failed'); }
+  }
+  /** display only (HUD, toasts): never feeds back into the water */
   function coastUpdate() {
     if (cBusy || ++cTick % 6) return;
     cBusy = true;
@@ -534,25 +724,19 @@ export function createSolver(renderer, region, opts = {}) {
       coast.max = Math.max(coast.max, coast.now);
       const mean = su[0] / su[1] / 100 - 50;
       coast.mean = mean; coast.meanMax = Math.max(coast.meanMax, mean);
-      const want = wave.tide + (wave.H - wave.tide) * shape(time);
-      const lastT = coast.lastT; coast.lastT = time; coast.lastT0 = lastT;
-      // steer on the near-shore MEAN level (a single reflected peak at a quay would bias the gain low)
-      if (wave.calibrate && shape(time) > 0.35 && time < wave.pre + wave.rise + wave.hold) {
-        // midway between the near-shore mean and the quay-side peak (official 津波高 = coastal maximum,
-        // but a single reflected spike at one quay should not drive the whole wave)
-        const level = mean; // with gentle ramps the quay-side seiche peak is gone → steer on the mean
-        const err = (want - wave.tide) / Math.max(level - wave.tide, 0.05) - 1;
-        // rate per SIMULATED second, so the controller behaves the same at ×1 and at full speed
-        const dts = Math.min(60, Math.max(0, time - (coast.lastT0 ?? time)));
-        // while the wave is still rising the coast lags the boundary by its travel time: never push up then
-        const rising = time < wave.pre + wave.rise;
-        const rate = (err < 0 ? 0.012 : rising ? 0 : 0.004) * dts;
-        wave.gain = Math.min(1.3, Math.max(0.25, wave.gain * (1 + Math.min(0.3, rate) * Math.max(-0.6, Math.min(0.6, err)))));
-      }
     }).catch(() => {}).finally(() => { rbC.release?.(); rbF.release?.(); rbS.release?.(); if (leveeIdx.length) rbB.release?.(); if (wash) rbW.release?.(); cBusy = false; });
   }
 
+  /** move the flow marks: `sdt` seconds of screen time, travelling `adv` simulated seconds along the flow */
+  let mkFrame = 0;
+  function marks(sdt, adv) {
+    if (!(sdt > 0)) return; // paused: the marks stand still
+    uMk.value.set(Math.min(sdt, 0.05), adv, ++mkFrame % 9973, 0);
+    renderer.compute(markUpdate);
+  }
+
   function pack(pdt = 0) {
+    present();
     coastUpdate();
     renderer.compute(parity ? pack1 : pack0);
     if (pdt > 0) { uPdt.value = Math.min(pdt, 0.05); renderer.compute(particleUpdate); } // spray lives in real time
@@ -587,22 +771,27 @@ export function createSolver(renderer, region, opts = {}) {
   }
 
   return {
-    N, dx, L, dt, wave, etaTarget, step, pack, requestProbe, probe, readAll, readWashed, coast, nested: !!nest,
+    N, dx, L, dt, wave, etaTarget, step, pack, marks, requestProbe, probe, readAll, readWashed, coast, nested: !!nest,
+    schedule: { CH, CHK, CTRL, LAG }, get subSteps() { return nSub; },
+    /** true while step() cannot go on because a control readback is late */
+    get waiting() { return !!(ctrlPending && !ctrlPending.done && nSub === ctrlPending.at + LAG); },
+    /** step() hands control back at the control point where the flood front first comes within `d` m of the pin */
+    stopWhenFrontWithin(d) { stopFront = coast.ctrlFront < d ? 0 : d; },
     washDepth: wash ? washDepth : 0, woodHouses: wash ? woodIds.length : 0,
     /** advance the clock without computing (a nested square that the flood has not reached yet) */
-    idle(T) { if (T > time) { time = T; uFrame.value.y = time; } },
+    idle(T) { if (T > time) { nSub = Math.round(T / dt); time = nSub * dt; uFrame.value.y = time; } },
     setPin(i, j) { uPin.value.set(i, j); },
     get time() { return time; },
-    buffers: { A, S, W, R, R2, M, P, V, LV, LI, WF }, surfTex, envTex, leveeCount: leveeIdx.length, buildingCount: nB,
+    buffers: { A, S, W, R, R2, M, P, V, LV, LI, WF, FM, FV }, surfTex, envTex, leveeCount: leveeIdx.length, buildingCount: nB,
     /** free the GPU buffers of this town (re-picking a point would otherwise leak ~0.3 GB at 1280²) */
     dispose() {
       dead = true;
-      for (const kn of [stage1, stage2, aux01, aux10, pack0, pack1, particleUpdate, coastReset, coastProbe, frontProbe, breachKernel, washDetect, washApply, washTally]) kn.dispose?.();
-      for (const b of [S, W, A, B, T0, T1, M, R, R2, P, V, counter, CI, coastMax, coastSum, frontMin, LV, LI, breachCount, WF, WC, WCB, RC, RCB, WI, washCount]) {
+      for (const kn of [stage1, stage2, aux01, aux10, maxKernel, pack0, pack1, particleUpdate, markUpdate, coastReset, coastProbe, frontProbe, ctrlReset, ctrlProbe, ctrlFrontProbe, breachKernel, washDetect, washApply, washTally]) kn.dispose?.();
+      for (const b of [S, W, A, B, T0, T1, M, R, R2, P, V, FM, FV, counter, CI, coastMax, coastSum, frontMin, ctrlSum, ctrlFront, LV, LI, breachCount, WF, WC, WCB, RC, RCB, WI, washCount]) {
         try { renderer._attributes?.delete(b.value); } catch { /* already gone */ }
       }
       surfTex.dispose(); envTex.dispose();
-      for (const r of [rbA, rbM, rbC, rbF, rbS, rbB, rbW]) r.dispose?.();
+      for (const r of [rbA, rbM, rbC, rbF, rbS, rbB, rbW, rbCS, rbCF]) r.dispose?.();
     },
     compileAll: async () => {
       const keep = uPrm.value.x;
@@ -610,13 +799,17 @@ export function createSolver(renderer, region, opts = {}) {
       renderer.compute([stage1, stage2]);
       uPrm.value.x = keep;
       renderer.compute(aux01); renderer.compute(aux10);
+      // nothing is wet on land at t = 0 and the clock reads 0: recording maxima here changes nothing
+      renderer.compute(maxKernel);
       renderer.compute(pack0); renderer.compute(pack1);
       renderer.compute(particleUpdate);
+      renderer.compute(markUpdate); // screen dt = 0: the marks only draw their first random cell
+      renderer.compute(ctrlReset); renderer.compute(ctrlProbe); renderer.compute(ctrlFrontProbe);
       if (leveeIdx.length) { const keepB = uWave.value.x; renderer.compute(breachKernel); uWave.value.x = keepB; }
       // nothing is ≥ 2 m deep on land at t = 0 (initially wet cells are not in the ring) → compiling is harmless
       if (wash) renderer.compute([washDetect, washApply, washTally]);
       // the warm-up above advanced nothing physically meaningful except aux; reset clocks
-      time = 0; frameNo = 0;
+      time = 0; frameNo = 0; nSub = 0;
     },
   };
 }

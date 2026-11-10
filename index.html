@@ -170,11 +170,12 @@
       <div class="ctl">
         <button id="play" class="primary round" aria-label="再生">▶</button>
         <div class="seg" id="speeds" role="group" aria-label="早送り">
-          <button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20" class="on">×20</button><button data-s="60">×60</button><button data-s="999">最速</button>
+          <button data-s="auto" class="on">おまかせ</button><button data-s="1">×1</button><button data-s="5">×5</button><button data-s="20">×20</button><button data-s="60">×60</button><button data-s="999">最速</button>
         </div>
         <div class="seg" id="views" role="group" aria-label="視点">
           <button data-v="wide" hidden>広域</button><button data-v="over" class="on">俯瞰</button><button data-v="pin">地点</button><button data-v="eye">目線</button><button data-v="impact">衝突</button>
         </div>
+        <p id="auto-note" class="auto-note" hidden role="status"><span id="auto-t"></span><button id="auto-keep" class="ghost small"></button></p>
       </div>
       <details id="disp" class="disp" open>
       <summary>表示の切りかえ</summary>
@@ -182,8 +183,11 @@
         <label><input type="checkbox" id="tg-depth" /> 深さで色分け（塗り＝この再現）</label>
         <label><input type="checkbox" id="tg-off" /> 公式想定を重ねる（斜線）</label>
         <label><input type="checkbox" id="tg-spray" checked /> 飛沫</label>
+        <label><input type="checkbox" id="tg-marks" checked /> 流れの印</label>
         <label><input type="checkbox" id="tg-calm" /> 控えめ表示</label>
       </div>
+      <p id="marks-legend" class="marks-legend"><i></i>白い細い線＝水の流れの向きと速さの目印（計算から描いた印。波や漂流物ではありません）</p>
+      <p class="marks-legend front"><i></i>水のふちの明るい線＝深さ約5cmの所（その先にも、うすい水が広がっています）</p>
       </details>
       <button id="result-btn" class="primary small result-btn">結果と、このあとすること</button>
       <div id="legend" hidden>

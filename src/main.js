@@ -13,13 +13,19 @@ import { createMemo } from './memo.js';
 import { $, esc, depthSay, hazardMapUrl, walkMin, arrivalJa, arrivalSentence, openDialog, closeDialog, isDialogOpen, anyDialogOpen } from './ui.js';
 import { makeFrame } from './data/geo.js';
 import { createSolver } from './sim/swe.js';
+import { advanceWater } from './sim/advance.js';
 import { createWorld } from './render/world.js';
 import { createPin, createSeaMarker } from './render/markers.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 const qs = new URLSearchParams(location.search);
+// sensitivity experiments (dev server only; docs/fable52/11_…設計.md B3): ?xl=3000 size of the square (m),
+// ?xhold=300 seconds the high level is held, ?xbreach=120 seconds a seawall takes to come down
+const XP = import.meta.env.DEV ? Object.fromEntries(['xl', 'xhold', 'xbreach'].filter((k) => qs.has(k) && Number(qs.get(k)) > 0).map((k) => [k, Number(qs.get(k))])) : {};
 const show = (id) => { document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id)); };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// people who asked their device for less motion start without the moving flow marks (they can switch them on)
+if (reduceMotion) { const mk = document.getElementById('tg-marks'); if (mk) mk.checked = false; }
 const isSmall = Math.min(innerWidth, innerHeight) < 700;
 if (isSmall) $('quality').value = '512';
 // phones, tablets and short windows: the side panels start folded so the 3-D view (and the dock) stay clear
@@ -116,7 +122,7 @@ async function onPick(lat, lon) {
   infoP.then((i) => { if (token === sel.token) brief.setInfo(i ?? { failed: true }); });
   const [info, plan] = await Promise.all([
     infoP,
-    planDomain(lat, lon).catch((e) => ({ ok: false, reason: 'error', error: e })),
+    planDomain(lat, lon, XP.xl ? { baseL: XP.xl } : {}).catch((e) => ({ ok: false, reason: 'error', error: e })),
   ]);
   if (token !== sel.token) return;
   sel.plan = plan;
@@ -412,14 +418,15 @@ async function createApp(region, o) {
   const H = o.H;
   // nested run: the wide solver makes the wave; the detailed one follows it along all four edges
   const oreg = o.outerRegion ?? null;
-  const outerSolver = oreg ? createSolver(renderer, oreg, { H, tide: o.tide ?? 0, breach: o.breach ?? true }) : null;
+  const outerSolver = oreg ? createSolver(renderer, oreg, { H, tide: o.tide ?? 0, breach: o.breach ?? true, breachTime: XP.xbreach ?? 0 }) : null;
   if (outerSolver) outerSolver.wave.hold = 3600; // inland points: the flood keeps spreading while the sea stays high (≈ 90 min run)
   const innerOffset = o.plan?.outer?.innerOffset ?? { x: 0, z: 0 };
   const solver = createSolver(renderer, region, {
-    H, tide: o.tide ?? 0, breach: o.breach ?? true, washaway: o.washaway ?? true,
+    H, tide: o.tide ?? 0, breach: o.breach ?? true, washaway: o.washaway ?? true, breachTime: XP.xbreach ?? 0,
     ...(outerSolver ? { nest: { solver: outerSolver, offset: innerOffset }, calibrate: false } : {}),
   });
   if (outerSolver) solver.wave.hold = outerSolver.wave.hold;
+  if (XP.xhold) { solver.wave.hold = XP.xhold; if (outerSolver) outerSolver.wave.hold = XP.xhold; }
   const world = createWorld(renderer, region, solver, outerSolver ? { outer: { region: oreg, solver: outerSolver, offset: { x: -innerOffset.x, z: -innerOffset.z } } } : {});
   // the wide solver watches for its flood front around the detailed square (sleep the fine grid until then)
   if (outerSolver) outerSolver.setPin((innerOffset.x + oreg.L / 2) / oreg.dx - 0.5, (innerOffset.z + oreg.L / 2) / oreg.dx - 0.5);
@@ -666,13 +673,21 @@ async function createApp(region, o) {
   $('views').querySelector('[data-v="wide"]').hidden = !far;
 
   // ── state ──
-  const st = { playing: false, speed: 20, maxSteps: N >= 1024 ? 14 : N >= 768 ? 28 : 48, frames: 0, ft: 0, lastT: performance.now(), shownResult: false, arrived: null };
-  // inland runs cover ~55 min of flood travel: start at ×60
-  if (far) { st.speed = 60; document.querySelectorAll('#speeds button').forEach((b) => b.classList.toggle('on', b.dataset.s === '60')); }
+  // speed: 'auto'（おまかせ）or a fixed number the user picked. acc = simulated seconds owed to the water,
+  // eff = the speed the water really runs at (smoothed), hl = the slow-motion highlight that is on, if any
+  const st = { playing: false, speed: 'auto', maxSteps: N >= 1024 ? 14 : N >= 768 ? 28 : 48, frames: 0, ft: 0, lastT: performance.now(), shownResult: false, arrived: null, acc: 0, eff: 0, hl: null, hlSeen: {} };
+  // おまかせ: ×20 (inland runs cover ~55 min of flood travel: ×60), and ×5 while the water comes ashore
+  const baseSpeed = far ? 60 : 20, SLOW = 5;
+  const curSpeed = () => (st.speed === 'auto' ? (st.hl ? SLOW : baseSpeed) : st.speed);
+  const showSpeed = () => {
+    document.querySelectorAll('#speeds button').forEach((b) => b.classList.toggle('on', b.dataset.s === String(st.speed)));
+    const a = document.querySelector('#speeds [data-s="auto"]');
+    if (a) a.textContent = st.speed === 'auto' ? `おまかせ（いま×${curSpeed()}）` : 'おまかせ';
+  };
   const total = lead.wave.pre + lead.wave.rise + lead.wave.hold + lead.wave.fall + 240;
   // nothing of the previous town may show for even a frame: its toast, its speed button, its numbers
   $('toast').hidden = true; $('toast-yes').hidden = false;
-  document.querySelectorAll('#speeds button').forEach((b) => b.classList.toggle('on', Number(b.dataset.s) === st.speed));
+  showSpeed(); $('auto-note').hidden = true;
   $('play').textContent = '▶'; $('play').setAttribute('aria-label', '再生');
   $('h-now').textContent = '0.00'; $('h-max').textContent = '—'; $('h-v').textContent = '—'; $('h-arr-k').textContent = '水の先端まで'; $('h-arr').textContent = '—';
   $('h-say').textContent = '▶ を押すと、仮定の津波が動き出します'; $('h-say').className = 'say'; $('h-say-live').textContent = '';
@@ -685,8 +700,53 @@ async function createApp(region, o) {
   const on = (id, ev, fn) => { const el = $(id); el.addEventListener(ev, fn); cleanups.push(() => el.removeEventListener(ev, fn)); };
   const cleanups = [];
   on('play', 'click', ui.play);
-  const speedsClick = (e) => { const b = e.target.closest('button'); if (!b) return; st.speed = Number(b.dataset.s); document.querySelectorAll('#speeds button').forEach((x) => x.classList.toggle('on', x === b)); };
+  // picking a speed by hand switches the automatic slow-motion off; おまかせ switches it back on
+  const speedsClick = (e) => { const b = e.target.closest('button'); if (!b) return; st.speed = b.dataset.s === 'auto' ? 'auto' : Number(b.dataset.s); $('auto-note').hidden = true; showSpeed(); };
   on('speeds', 'click', speedsClick);
+  on('auto-keep', 'click', () => { st.speed = baseSpeed; st.hl = null; $('auto-note').hidden = true; showSpeed(); });
+  // the highlight: slow down while the water comes ashore (announced, and one press keeps the fast speed).
+  // It only chooses how fast the SAME computation is shown — the water itself does not depend on it.
+  function highlight(front) {
+    if (st.speed !== 'auto') { st.hl = null; return; }
+    const t = lead.time;
+    // how fast the flood front closes in on the point (m per simulated second), over at least 8 simulated
+    // seconds — the front is read in grid cells, a shorter baseline turns one cell into a "rush"
+    if (Number.isFinite(front) && Number.isFinite(st.hlFront) && t > st.hlFrontT + 8) {
+      st.hlClosing = (st.hlFront - front) / (t - st.hlFrontT); st.hlFront = front; st.hlFrontT = t;
+      st.hlStall = st.hlClosing < 0.1 ? (st.hlStall || 0) + 1 : 0; // baselines in a row without progress
+    }
+    else if (Number.isFinite(front) && !Number.isFinite(st.hlFront)) { st.hlFront = front; st.hlFrontT = t; }
+    // "near" = at this pace the water is here within about a minute. A front that stands still in front of a
+    // seawall is not "near" in this sense (Nagoya: it waits there for minutes) — the moment the wall is
+    // overtopped has its own highlight, and that one comes first
+    const closing = st.hlClosing ?? 0;
+    const near = st.arrived == null && front < 200 && closing > 0.4 && front / closing < 60;
+    const begin = (kind, text, until) => {
+      st.hl = { kind, until }; st.hlSeen[kind] = (st.hlSeen[kind] || 0) + 1; st.hlStall = 0;
+      $('auto-t').textContent = `${text}、ゆっくり（×${SLOW}）にしました。`;
+      $('auto-keep').textContent = `×${baseSpeed}のまま`;
+      $('auto-note').hidden = false;
+      clearTimeout(st.hlTimer);
+      st.hlTimer = setTimeout(() => { $('auto-note').hidden = true; }, 9000);
+      showSpeed();
+    };
+    const end = () => { st.hl = null; $('auto-note').hidden = true; showSpeed(); };
+    const breached = (solver.coast.breached || outerSolver?.coast.breached || 0) > 0;
+    if (!st.hlSeen.breach && breached) begin('breach', '水が防潮壁を越えたので', t + 120);
+    else if (!st.hl) {
+      if ((st.hlSeen.near || 0) < 2 && near) begin('near', '水が近づいたので', t + 120);
+    } else if (st.hl.kind === 'near') {
+      // until 60 simulated seconds after the water reached the point — or until the front stops coming
+      if (st.arrived != null) st.hl.until = Math.min(st.hl.until, st.arrived + 60);
+      else if (st.hlStall >= 2) st.hl.until = Math.min(st.hl.until, t); // 16 s without progress: it has stopped
+      if (t >= st.hl.until) end();
+    } else {
+      // the seawall highlight hands over to "near" when the water then runs up to the point
+      if ((st.hlSeen.near || 0) < 2 && near && t > st.hl.until - 30) { st.hl = { kind: 'near', until: t + 120 }; st.hlSeen.near = (st.hlSeen.near || 0) + 1; st.hlStall = 0; }
+      else if (t >= st.hl.until) end();
+    }
+  }
+  cleanups.push(() => clearTimeout(st.hlTimer));
   on('views', 'click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); });
   const applyToggles = () => {
     if ($('tg-depth').checked) $('toast').hidden = true;
@@ -695,10 +755,12 @@ async function createApp(region, o) {
     $('legend').hidden = !(depth || $('tg-off').checked);
     world.uShowOfficial.value = $('tg-off').checked ? 1 : 0;
     world.spray.visible = $('tg-spray').checked && !calm();
+    world.marks.visible = $('tg-marks').checked && !calm();
+    $('marks-legend').hidden = !world.marks.visible;
     world.uShowTall.value = $('tg-tall').checked ? 1 : 0;
     for (const l of tall.labels) l.visible = $('tg-tall').checked;
   };
-  ['tg-depth', 'tg-off', 'tg-spray', 'tg-calm', 'tg-tall'].forEach((id) => on(id, 'change', applyToggles));
+  ['tg-depth', 'tg-off', 'tg-spray', 'tg-marks', 'tg-calm', 'tg-tall'].forEach((id) => on(id, 'change', applyToggles));
   applyToggles();
   on('result-btn', 'click', () => openResult());
   on('r-close', 'click', () => closeDialog($('result')));
@@ -744,6 +806,7 @@ async function createApp(region, o) {
   }
   function updateHud() {
     const t = lead.time;
+    if (st.playing) highlight(Math.min(solver.coast.front, outerSolver ? outerSolver.coast.front : Infinity));
     $('clock').textContent = fmt(t - lead.wave.pre);
     $('phase').textContent = st.playing || t > 0 ? phase(t) : '待機（▶で開始）';
     const p = solver.probe;
@@ -889,7 +952,14 @@ async function createApp(region, o) {
     const odd = [];
     if (region.leveeCells && !o.breach) odd.push('「壊れない防潮壁」（公式の想定にはない条件）');
     if (region.leveeCells && H <= o.levee.crest) odd.push(`海の高さ（${H.toFixed(1)}m）が防潮壁（T.P.+${o.levee.crest.toFixed(1)}m）より低い条件`);
-    const oddP = odd.length ? `<p class="r-odd">この結果は、${odd.join('、')}で計算しています。安全の根拠にはなりません。</p>` : '';
+    // the wave that actually arrived: the near-shore level this run reached, next to the assumed height. Where the
+    // sea near the point lies behind a narrow entrance, the level never gets there within the run (near Kōchi
+    // station: about 7 m of the assumed 15 m) — the depths are then those of a smaller wave, and the card says so
+    const tide0 = o.tide ?? 0, cm = lead.coast.meanMax;
+    const coastShort = done && Number.isFinite(cm) && (cm - tide0) / Math.max(H - tide0, 0.1) < 0.9;
+    const missed = (solver.coast.ctrlMissed || 0) + (outerSolver?.coast.ctrlMissed || 0);
+    const oddP = (odd.length ? `<p class="r-odd">この結果は、${odd.join('、')}で計算しています。安全の根拠にはなりません。</p>` : '')
+      + (coastShort ? `<p class="r-odd">この再現では、近くの海岸の水位が、仮定の高さ（${H.toFixed(1)}m）まで上がりませんでした（計算で届いたのは 約${cm.toFixed(1)}m）。ここに出ている深さは、仮定どおりの高さの波が来た場合より、浅く出ています。安全の根拠にはなりません。</p>` : '');
     let key;
     if (!done) {
       key = `<p class="r-amber"><strong>まだ途中です（再現の時計 ${fmt(lead.time - lead.wave.pre)}）。</strong>途中の数字は結果ではありません。最後まで再生してから、もう一度開いてください。${reached ? `ここまでの最大は ${pm[0].toFixed(1)}m で、まだ増えることがあります。` : ''}</p>${oddP}${offP}${offTop > 0.01 ? prep : ''}`;
@@ -920,7 +990,8 @@ async function createApp(region, o) {
       <div><dt>周辺100m四方の最大（10m平均・公式と同じ物差し）</dt><dd>${cell100 > 0.01 ? cell100.toFixed(2) + 'm' : `<small>${done ? 'この再現では、周りにも届かず' : 'ここまでは届いていません（途中）'}。安全という意味ではありません</small>`}</dd></div>
       <div><dt>最大の流れの速さ</dt><dd>${reached ? pm[2].toFixed(1) + 'm/s' : '—'}</dd></div>
       <div><dt>計算範囲内で水に浸かった陸地</dt><dd>${km2.toFixed(2)}km²</dd></div>
-      <div><dt>条件</dt><dd><small>海の高さ ${H.toFixed(1)}m（仮定）／はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m／${region.leveeCells ? `防潮壁 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない（公式の想定にはない条件）'}（壊れたセル ${solver.coast.breached}）` : '防潮壁なし'}／${solver.washDepth > 0 ? `木造家屋は浸水深${solver.washDepth}mで流失` : '木造家屋の流失なし'}</small></dd></div>`;
+      <div><dt>近くの海岸の水位（計算で届いた最大）</dt><dd>${Number.isFinite(cm) ? `T.P.+${cm.toFixed(1)}m<small>（仮定は ${H.toFixed(1)}m${coastShort ? '。届いていません' : ''}。海岸近くの海の平均）</small>` : '—'}</dd></div>
+      <div><dt>条件</dt><dd><small>海の高さ ${H.toFixed(1)}m（仮定）／はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m／${region.leveeCells ? `防潮壁 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない（公式の想定にはない条件）'}（壊れたセル ${solver.coast.breached}）` : '防潮壁なし'}／${solver.washDepth > 0 ? `木造家屋は浸水深${solver.washDepth}mで流失` : '木造家屋の流失なし'}／高い水位が続く時間 ${Math.round(lead.wave.hold / 60)}分（長めの仮定。短いと、深さは浅く出ます）${missed ? `／この回は、沖の波の調整を${missed}回とばしました（端末の処理の遅れ。同じ条件でも、数字が少し変わることがあります）` : ''}</small></dd></div>`;
     const offCells = official?.cells ?? [];
     const inDom = offCells.filter((c) => Math.abs(c.x) < L / 2 && Math.abs(c.z) < L / 2);
     const arr = arrivalJa(offCell?.arrival);
@@ -937,7 +1008,7 @@ async function createApp(region, o) {
     $('r-note').innerHTML = `<b>時刻について</b>：再現の時計は、計算の始まりからの時間で、実際の津波の時刻ではありません。公式想定の時刻は、地震が起きてからの、ケース01の最も早い到達です。どちらも、逃げるまでの猶予の時間ではありません。<br>` +
       (pinGround < 0.3 ? '<b>海面と同じか、海面より低い土地では、入った水は引きにくく、排水されるまで長く残ることがあります。</b>水が来る前に、高い所へ。水・食べ物・薬・トイレの備えも。<br>' : '') +
       `<b>再現と公式想定のちがい</b>：再現は、海岸に「海の高さ」（公式の11ケースの最大が初期値）の波を1つ入れた仮定の計算です。公式想定の枠は、ケース01だけの値です。${region.leveeCells ? '防潮壁は岸の線に置いた近似で、' : '防潮壁・水門、'}沖の高潮防波堤・地盤沈下・漂流物${solver.washDepth > 0 ? '' : '・建物の破壊'}は含みません${solver.washDepth > 0 ? '（建物の破壊は、木造家屋が浸水2mで流されることだけ）' : ''}。差は誤差ではなく、条件のちがいです。`;
-    $('r-read').textContent = `文章で読む：${done ? (reached ? `この仮定の波では、選んだ地点は最大で${pm[0].toFixed(1)}メートルの深さになりました` : `この仮定の波では、計算した約${mins}分の間、選んだ地点に水は届きませんでした。安全という意味ではありません`) : 'まだ途中です'}。周辺100メートル四方では最大${cell100.toFixed(1)}メートル。公式想定は、${{ hit: offCell ? `最大${offCell.depth.toFixed(1)}メートル` : '', none: 'このケースでは浸水セルなし（安全という意味ではありません）', outside: '収録範囲の外', failed: '取得できませんでした' }[offState]}。強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ。`;
+    $('r-read').textContent = `文章で読む：${done ? (reached ? `この仮定の波では、選んだ地点は最大で${pm[0].toFixed(1)}メートルの深さになりました` : `この仮定の波では、計算した約${mins}分の間、選んだ地点に水は届きませんでした。安全という意味ではありません`) : 'まだ途中です'}。周辺100メートル四方では最大${cell100.toFixed(1)}メートル。公式想定は、${{ hit: offCell ? `最大${offCell.depth.toFixed(1)}メートル` : '', none: 'このケースでは浸水セルなし（安全という意味ではありません）', outside: '収録範囲の外', failed: '取得できませんでした' }[offState]}。${coastShort ? `この再現では、近くの海岸の水位が、仮定の高さまで上がりませんでした（計算で約${cm.toFixed(1)}メートル）。深さは浅めに出ています。` : ''}強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ。`;
   }
 
   /** result extras: 垂直避難 / 建物ごとの公式比較 / 木造家屋の流失 */
@@ -1059,25 +1130,25 @@ async function createApp(region, o) {
       if (Math.abs(want - camera.near) / camera.near > 0.15) { camera.near = want; camera.updateProjectionMatrix(); }
     }
     pin.setDetail(camera.position.distanceTo(pin.group.position) < 140);
+    let adv = 0; // simulated seconds the detailed square advanced in this frame
     if (st.playing) {
-      if (!outerSolver) {
-        const want = Math.ceil((st.speed * rdt) / solver.dt);
-        const steps = Math.max(1, Math.min(want, st.maxSteps));
-        solver.step(steps, calm() ? 0 : 1);
-      } else {
-        // advance both squares to the same time; the fine one only once the flood is near it
-        const active = st.innerActive || outerSolver.coast.front < L * 0.75 + 600;
-        if (active && !st.innerActive) st.innerActive = true;
-        const budget = active ? Math.min(st.maxSteps * solver.dt, st.speed * rdt) : Math.min(st.speed * rdt, st.maxSteps * 6 * outerSolver.dt);
-        const T = outerSolver.time + budget;
-        outerSolver.step(Math.max(1, Math.round((T - outerSolver.time) / outerSolver.dt)), 0);
-        if (active) solver.step(Math.max(0, Math.round((outerSolver.time - solver.time) / solver.dt)), calm() ? 0 : 1);
-        else solver.idle(outerSolver.time);
-      }
+      // simulated seconds owed to the water, carried over between frames (×1 really is ×1: before, at least one
+      // sub-step ran per frame, which made ×1 run at about ×1.3–×2). How the sub-steps fall into frames no longer
+      // changes the result — see the fixed schedule in sim/swe.js and sim/advance.js.
+      adv = advanceWater(solver, outerSolver, st, curSpeed() * rdt, { spray: calm() ? 0 : 1, wake: L * 0.75 + 600 });
       if (lead.time > total && !st.shownResult) { st.shownResult = true; ui.play(); openResult(); }
     }
     if (outerSolver) { outerSolver.pack(0); world.outerLayer.update(); }
     solver.pack(st.playing ? rdt : 0);
+    // flow marks: they travel with the water at the speed it is shown at, capped at ×20 (faster than that the
+    // eye cannot follow a mark; the tail then stands for the same 6 simulated seconds)
+    if (st.playing && rdt > 0) {
+      st.eff += (adv / rdt - st.eff) * 0.12;
+      const sp = Math.min(st.eff, 20);
+      world.uMark.value.x = THREE.MathUtils.clamp(sp * 0.3, 2, 6);
+      world.uMark.value.y = Math.max(1, sp);
+      if (world.marks.visible) solver.marks(rdt, sp * rdt);
+    } else world.uMark.value.y = 1; // paused: the ripples idle in real time
     world.uOuterEta.value = lead.etaTarget(lead.time);
     world.uEnv.value.y = now / 1000;
     world.renderCaustics();
@@ -1174,7 +1245,17 @@ else if (qs.has('lat') && qs.has('lon')) {
 if (import.meta.env.DEV) window.__t = {
   get app() { return app; }, renderer, start, THREE, picker,
   // advance the simulation deterministically (headless checks)
-  advance(seconds, fps = 30) { if (!app) return; const was = app.st.playing; app.st.playing = true; for (let i = 0; i < Math.round(seconds * fps); i++) app.frame(1 / fps); app.st.playing = was; },
+  // (async: at its control points the solver waits for a GPU readback, which only arrives between tasks)
+  async advance(seconds, fps = 30) {
+    if (!app) return;
+    const was = app.st.playing; app.st.playing = true;
+    const busy = () => app.solver.waiting || app.outerSolver?.waiting;
+    for (let i = 0; i < Math.round(seconds * fps); i++) {
+      app.frame(1 / fps);
+      for (let w = 0; w < 2500 && busy(); w++) await new Promise((r) => setTimeout(r, 2)); // up to 5 s
+    }
+    app.st.playing = was;
+  },
   async shot(name) {
     if (!app) return 0;
     renderer.setAnimationLoop(null);

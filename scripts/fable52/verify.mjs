@@ -82,7 +82,7 @@ async function flow(browser, name, vp, { preset = 'ガーデンふ頭', query = 
     for (const [n, target] of simSeconds.entries()) {
       // 決定的に進める（1コマ=1/30秒、×20）
       while (done < target) {
-        done = await page.evaluate((chunk) => { const a = window.__t.app; a.st.speed = 20; window.__t.advance(chunk); return a.lead.time; }, 4);
+        done = await page.evaluate(async (chunk) => { const a = window.__t.app; a.st.speed = 20; await window.__t.advance(chunk); return a.lead.time; }, 4);
       }
       await sleep(1200);
       if (n === 1) await page.evaluate(() => { const c = document.getElementById('tg-depth'); if (!c.checked) c.click(); });

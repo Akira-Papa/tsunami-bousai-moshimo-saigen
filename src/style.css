@@ -523,3 +523,12 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .route-miss { font-size: 13px; line-height: 1.7; display: flex; gap: 8px; align-items: flex-start; padding: 4px 2px; }
 .high-marker { width: 26px; height: 26px; border-radius: 6px; background: #c2410c; color: #fff; font-weight: 800; font-size: 14px; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.45); font-family: var(--font); }
 .route-sum { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink); }
+
+/* ── 速さ「おまかせ」の知らせと、流れの印の凡例（docs/fable52/11_…設計.md A1・A2） ── */
+.auto-note { flex: 1 1 100%; margin: 2px 0 0; padding: 6px 10px; border-radius: 10px; background: rgba(255, 196, 64, 0.14); border: 1px solid rgba(255, 196, 64, 0.45); font-size: 13px; line-height: 1.5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.auto-note[hidden] { display: none; }
+.auto-note button { min-height: 44px; padding: 0 14px; white-space: nowrap; }
+.marks-legend { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-3); }
+.marks-legend[hidden] { display: none; }
+.marks-legend i { display: inline-block; width: 26px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; background: linear-gradient(90deg, rgba(237, 247, 255, 0), #edf7ff); }
+.marks-legend.front i { height: 0; border-top: 2px solid #eef8f4; background: none; border-radius: 0; opacity: 0.9; }

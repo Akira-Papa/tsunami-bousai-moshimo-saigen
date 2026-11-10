@@ -236,6 +236,9 @@ export function createWorld(renderer, region, solver, opts = {}) {
     sun.shadow.needsUpdate = true;
   }
 
+  // tail length of the flow marks in simulated seconds · the speed the water is shown at (×, for the ripples)
+  const uMark = uniform(new THREE.Vector4(6, 1, 0, 0));
+
   // ── water ──
   const water = (() => {
     const geo = new THREE.PlaneGeometry(L - dx, L - dx, N - 1, N - 1);
@@ -254,7 +257,7 @@ export function createWorld(renderer, region, solver, opts = {}) {
     const wFn = wgslFn(WATER_FN, [lib]);
     const pt = texture(photoTex), ct = texture(cauTex), bt = texture(bedTex);
     const out = wFn({
-      p: positionWorld, eye: cameraPosition, L: uL, nIn: vN, h: vH, turb: vC, foamIn: vF, flow: vU, env: uEnv,
+      p: positionWorld, eye: cameraPosition, L: uL, nIn: vN, h: vH, turb: vC, foamIn: vF, flow: vU, env: uEnv, play: uMark.y,
       pt, ps: sampler(pt), ct, cs: sampler(ct), bt, bs: sampler(bt),
     });
     mat.colorNode = out.xyz;
@@ -291,6 +294,48 @@ export function createWorld(renderer, region, solver, opts = {}) {
   })();
   scene.add(spray);
 
+  // ── flow marks: thin streaks lying on the water, riding the COMPUTED flow (sim/swe.js markUpdate) ──
+  // bright head → the way the water goes; length → how fast (the distance it travels in uMark.x simulated
+  // seconds). Never round, one colour, only on water: they must not read as debris, foam or waves.
+  const marks = (() => {
+    const n = solver.buffers.FM.value.count;
+    const FMr = storage(solver.buffers.FM.value, 'vec4', n).toReadOnly();
+    const FVr = storage(solver.buffers.FV.value, 'vec4', n).toReadOnly();
+    const p = FMr.element(instanceIndex);
+    const f = FVr.element(instanceIndex);
+    const sp = length(f.xy);
+    const dir = f.xy.div(max(sp, 0.01));
+    const head = vec3(p.x, f.z, p.y);
+    const dist = length(cameraPosition.sub(head));
+    const len = clamp(sp.mul(uMark.x), 2.5, 70);
+    const wid = clamp(dist.mul(0.0030), 0.14, 6);
+    const along = uv().x, side = uv().y.sub(0.5);
+    const off = dir.mul(len.mul(along.sub(1))).add(vec2(dir.y.negate(), dir.x).mul(side.mul(wid)));
+    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    // a hair above the surface, more so far away (depth precision), and nothing at all for a resting mark
+    mat.positionNode = vec3(head.x.add(off.x), head.y.add(0.07).add(dist.mul(0.0007)), head.z.add(off.y)).mul(f.w);
+    const vA = varying(along, 'vMkA');
+    const vS = varying(side, 'vMkS');
+    // fade in over the first 0.4 s of its life and out over the last 0.8 s; faint where the water barely moves
+    const life = varying(smoothstep(0, 0.4, p.z).mul(float(1).sub(smoothstep(p.w.sub(0.8), p.w, p.z))).mul(smoothstep(0.12, 0.6, sp)).mul(f.w), 'vMkL');
+    // near the eye the lines thin out (they must not look like objects in front of the viewer)
+    const nearFade = varying(smoothstep(6, 30, dist), 'vMkN');
+    mat.colorNode = vec4(vec3(0.93, 0.97, 1.0), 1);
+    // a tapering stroke: hair-thin at the tail, full width at the head, and the head itself rounded off
+    const half = mix(float(0.12), float(0.5), vA);
+    const body = float(1).sub(smoothstep(half.mul(0.55), half, abs(vS)));
+    mat.opacityNode = vA.pow(1.6).mul(float(1).sub(smoothstep(0.9, 1.0, vA))).mul(body).mul(life).mul(nearFade).mul(0.7);
+    mat.fog = true;
+    const g = new THREE.PlaneGeometry(1, 1);
+    g.translate(0.5, 0.5, 0); // uv = position: x 0 (tail) … 1 (head)
+    const m = new THREE.Mesh(g, mat);
+    m.count = n;
+    m.frustumCulled = false;
+    m.renderOrder = 4;
+    return m;
+  })();
+  scene.add(marks);
+
   // ── sky dome ──
   {
     const skyFn = wgslFn(/* wgsl */`fn w_skyCol(p: vec3f, eye: vec3f, L: vec3f) -> vec3f { return w_sky(p - eye, L); }`, [lib]);
@@ -322,7 +367,7 @@ export function createWorld(renderer, region, solver, opts = {}) {
 
   return {
     scene, camera, pipeline, uEnv, uL, setSun, uShowOfficial, uShowMax, uOuterEta, outerLayer, uShowTall, setHighlight, markWashed,
-    terrain, buildings, water, spray, renderCaustics, causticScene, causticCam,
+    terrain, buildings, water, spray, marks, uMark, renderCaustics, causticScene, causticCam,
     dispose() {
       for (const sc of [scene, causticScene]) sc.traverse((o) => {
         // THREE.Sprite instances all share ONE module-level geometry: disposing it destroys the GPU buffer
