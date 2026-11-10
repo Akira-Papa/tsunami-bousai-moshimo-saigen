@@ -61,14 +61,19 @@ export function officialState(off, cell) {
  * the flooded cells around a spot: a spot whose own 100 m cell is dry in ケース01 may have a flooded cell
  * across the street — "no cell here" must never be shown without that
  */
-export function officialAround(off, x, z, R = 300) {
+export function officialAround(off, x, z, R = 300, isLand = null) {
   let nearest = Infinity, max = 0, n = 0;
   for (const c of off?.cells ?? []) {
     const d = Math.hypot(c.x - x, c.z - z);
     if (d > R) continue;
+    // the official mesh also carries cells over harbour water and river mouths: a "deepest value nearby"
+    // must come from land when the caller can tell land from water
+    if (isLand && !isLand(c)) continue;
     n++; nearest = Math.min(nearest, d); max = Math.max(max, c.depth);
   }
-  return { R, n, nearest: n ? nearest : null, max };
+  // distances are to the EDGE of the 100 m cell (its centre minus 50 m): "80 m away" for a cell whose
+  // edge is 17 m away would read farther — and safer — than it is
+  return { R, n, nearest: n ? nearest : null, edge: n ? Math.max(0, nearest - 50) : null, max, landOnly: !!isLand };
 }
 
 /**
@@ -80,6 +85,7 @@ export function caseNote(row) {
   const cs = row?.cases_2025, c1 = cs?.['1'], max = row?.max_2025;
   if (c1 == null || max == null) return null;
   const tops = Object.entries(cs).filter(([, v]) => v === max).map(([k]) => Number(k));
+  // the table is in whole metres: equal figures do not prove ケース01 is the highest, a smaller one does prove it is not
   return { c1, max, tops, lower: c1 < max };
 }
 

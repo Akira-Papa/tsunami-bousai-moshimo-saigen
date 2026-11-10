@@ -407,3 +407,61 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
 .time { flex-wrap: wrap; }
 .clock-note { font-size: 12px; color: var(--ink-3); }
 @media (max-width: 760px) { .clock-note { flex-basis: 100%; margin-top: -4px; } .time { gap: 2px 10px; } }
+
+/* ═════════ レビュー1周目の指摘の反映 ═════════ */
+:root { --ink-3: #a3b5c3; }                     /* 小さい文字のコントラスト（薄い地図の上でも 4.5:1 以上） */
+.pick-card { z-index: 3; }                      /* DOM では地図より前（Tab の順）、見た目は地図の上 */
+.map-note { z-index: 2; }
+.preset-group, .htall li small, .rtab td small, .credit, .time .k small, #map .maplibregl-ctrl-attrib { font-size: 12px; }
+.perf { background: rgba(9,18,26,.6); padding: 2px 6px; border-radius: 6px; }
+.jump { display: block; font-size: 14px; padding: 10px 0; min-height: 44px; }
+.jump[hidden], .lead span[hidden] { display: none; }
+.brief-nums { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: flex-end; }
+.brief-main .k small { display: block; color: #ffcfa8; font-weight: 700; }
+.brief-main.deeper .brief-num { color: #ffb38a; }
+.evac-intro { margin: 0; font-size: 13px; line-height: 1.7; }
+.r-key b, .r-key strong { font-weight: 700; }
+.r-main b, .r-offline b, .r-prep b { font-family: inherit; font-size: inherit; color: inherit; }
+.r-key .num { font-family: var(--mono); font-size: 20px; color: #fff; }
+.r-odd { background: rgba(242,184,75,.14); border-left: 4px solid var(--amber); padding: 6px 12px; font-size: 14px; }
+.hud-off { align-items: flex-start; }
+.hud-off output small { display: block; font-family: var(--font); font-weight: 400; font-size: 12px; line-height: 1.5; color: #ffe2a8; }
+.hud-off output small b { color: #ffd98a; }
+.stats dd small { display: block; font-family: var(--font); font-weight: 400; font-size: 12px; color: #ffe2a8; }
+#memo-other { margin: 0 0 8px; }
+
+/* 通知は、常設の札（揺れたら高い所へ）と深さの数字を隠さない：ドックのすぐ上に出す */
+.toast, #sim .toast { top: auto; left: 50%; right: auto; transform: translateX(-50%); bottom: calc(var(--dock-h, 280px) + var(--credit-h, 14px) + 20px); width: max-content; max-width: min(640px, calc(100vw - 32px)); z-index: 8; }
+.toast button { min-height: 44px; min-width: 44px; }
+/* 右の欄（HUD）は、ドックと通知にかからない高さまで。はみ出す分は欄の中でスクロール */
+@media (min-width: 761px) {
+  .hud { max-height: calc(100dvh - 80px); overflow-y: auto; }
+}
+@media (min-width: 761px) and (max-width: 1439px) {
+  .hud { max-height: calc(100dvh - 64px - var(--dock-h, 280px) - var(--credit-h, 14px) - 90px); }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .badge { top: 64px; }
+  .hud { top: 132px; max-height: calc(100dvh - 132px - var(--dock-h, 280px) - var(--credit-h, 14px) - 90px); }
+  .disp summary { display: block; cursor: pointer; font-size: 13px; padding: 8px 4px; color: var(--sea); min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .toast, #sim .toast { bottom: calc(var(--dock-h, 300px) + 16px); width: auto; left: 8px; right: 8px; transform: none; max-width: none; }
+  .presets button { min-height: 44px; padding: 8px 14px; }
+  .seg button { min-height: 44px; min-width: 44px; }
+  .toggles label { min-height: 44px; }
+  #back, .hud-more, .result-btn { min-height: 44px; }
+  .map-note { font-size: 12px; }
+  .htall, .htall > small { font-size: 12px; }
+  .disp summary { min-height: 44px; padding: 12px 4px; }
+  .hud-off output small { font-size: 12px; }
+}
+@media (max-width: 760px) { .call { margin: 8px 0; padding: 6px 10px; } .call b { font-size: 15px; } .call span { font-size: 13px; } .r-act { gap: 8px; } .r-key p { line-height: 1.6; } }
+@media (min-width: 1440px) { .dock { width: min(860px, calc(100vw - 624px)); } }
+@media (max-width: 760px) { .hud { top: 114px; } }
+@media (min-width: 761px) and (max-width: 1100px) {
+  .hud { grid-template-columns: 1fr auto; gap: 6px 10px; align-items: start; }
+  .hud-main { grid-column: 1; }
+  .hud-more { grid-column: 2; grid-row: 1; justify-self: end; }
+  .hud-detail { grid-column: 1 / -1; }
+}

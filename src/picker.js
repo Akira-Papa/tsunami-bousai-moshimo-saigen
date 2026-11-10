@@ -64,10 +64,17 @@ function makeMap() {
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  // a map tile that fails to load (a network hiccup) is not fatal: the map retries as it moves.
+  // Without a listener MapLibre reports each one as console.error.
+  map.on('error', (e) => console.warn('map:', e?.error?.message ?? e?.message ?? e));
   // phones: the credit starts folded (the "i" button opens it) — unfolded it covers the card's first lines
   if (innerWidth <= 760) map.once('load', () => document.querySelector('#map .maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
   return map;
 }
+
+// keyboard / screen-reader users: after choosing by name, continue from the official card (not from a
+// preset button that has scrolled away, a dozen Tab stops before it)
+const focusCard = () => requestAnimationFrame(() => document.getElementById('brief-h')?.focus({ preventScroll: true }));
 
 function wire(map, onPick) {
   let marker = null;
@@ -122,7 +129,7 @@ function wire(map, onPick) {
     const b = document.createElement('button');
     b.type = 'button';
     b.textContent = p.name;
-    b.onclick = () => setPoint(p.lat, p.lon);
+    b.onclick = () => { setPoint(p.lat, p.lon); focusCard(); };
     pre.appendChild(b);
   }
 
@@ -134,6 +141,7 @@ function wire(map, onPick) {
     const q = document.getElementById('q').value.trim();
     if (!q) return;
     list.hidden = false;
+    list.setAttribute('aria-live', 'polite');
     list.innerHTML = '<li>検索中…</li>';
     try {
       const r = await fetchOk(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`, 10000);
@@ -145,7 +153,7 @@ function wire(map, onPick) {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = f.properties.title;
-        b.onclick = () => { list.hidden = true; setPoint(f.geometry.coordinates[1], f.geometry.coordinates[0]); };
+        b.onclick = () => { list.hidden = true; setPoint(f.geometry.coordinates[1], f.geometry.coordinates[0]); focusCard(); };
         li.appendChild(b);
         list.appendChild(li);
       }

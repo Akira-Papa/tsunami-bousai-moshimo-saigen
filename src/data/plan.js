@@ -100,10 +100,10 @@ export async function planDomain(lat, lon, { baseL = 1500, maxL = 4000, maxOuter
 const WARDS = { 23101: '千種区', 23102: '東区', 23103: '北区', 23104: '西区', 23105: '中村区', 23106: '中区', 23107: '昭和区', 23108: '瑞穂区', 23109: '熱田区', 23110: '中川区', 23111: '港区', 23112: '南区', 23113: '守山区', 23114: '緑区', 23115: '名東区', 23116: '天白区' };
 
 /** municipality code via the GSI reverse geocoder, then the Cabinet-Office 2025 coastal maximum */
-export async function tsunamiHeightAt(lat, lon) {
-  let code = null, place = '';
+export async function tsunamiHeightAt(lat, lon, ms = 8000) {
+  let code = null, place = '', guessed = false;
   try {
-    const r = await fetchOk(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`, 8000);
+    const r = await fetchOk(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`, ms);
     const j = r ? await r.json() : null;
     code = j?.results?.muniCd ?? null;
     place = j?.results?.lv01Nm ?? '';
@@ -112,7 +112,9 @@ export async function tsunamiHeightAt(lat, lon) {
   const byCode = new Map(mun.municipalities.map((m) => [m.code, m]));
   const parentOf = (c) => mun.municipalities.find((m) => (m.wards ?? []).includes(c)) ?? null;
   if (!code) {
-    // offline: nearest municipality representative point
+    // the reverse geocoder did not answer: nearest municipality representative point — a GUESS, and it can
+    // land in the next town (金城ふ頭 → 飛島村). The caller must say so on screen.
+    guessed = true;
     let bd = Infinity;
     for (const m of mun.municipalities) { const d = haversine(lat, lon, m.lat, m.lon); if (d < bd) { bd = d; code = m.code; } }
   }
@@ -137,5 +139,5 @@ export async function tsunamiHeightAt(lat, lon) {
     }
     if (best && bd < 20000) { row = best; borrowed = `${best.pref}${best.name}`; }
   }
-  return { code, place, name, H: row?.max_2025 ?? null, mean: row?.mean_2025 ?? null, row, borrowed };
+  return { code, place, name, H: row?.max_2025 ?? null, mean: row?.mean_2025 ?? null, row, borrowed, guessed };
 }

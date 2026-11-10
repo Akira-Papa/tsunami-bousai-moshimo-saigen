@@ -60,7 +60,7 @@ export function bearingJa(lat1, lon1, lat2, lon2) {
 }
 
 /** "約190m" / "約1.2km" — straight-line distance, rounded to 10 m */
-export const distJa = (d) => (d < 1000 ? `約${Math.max(10, Math.round(d / 10) * 10)}m` : `約${(d / 1000).toFixed(1)}km`);
+export const distJa = (d) => (d < 995 ? `約${Math.max(10, Math.round(d / 10) * 10)}m` : `約${(d / 1000).toFixed(1)}km`);
 
 export const EVAC_SOURCE = '国土地理院「指定緊急避難場所データ」（津波）';
 export const EVAC_SOURCE_URL = 'https://www.gsi.go.jp/bousaichiri/hinanbasho.html';

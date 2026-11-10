@@ -13,17 +13,17 @@
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
+<main>
   <!-- 1. 地点を選ぶ -->
   <section id="pick" class="screen active" aria-label="地点を選ぶ">
-    <div id="map"></div>
-    <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>
     <aside class="card pick-card">
       <p class="quake" role="note"><b>強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ避難を。</b><span>このサイトは仮定の再現で、予測ではありません。</span></p>
       <header>
-        <p class="eyebrow">公式想定の確認 ＋ 3Dの物理シミュレーション</p>
+        <p class="eyebrow">公式の想定を確かめる ＋ 3Dで水の動きを見る</p>
         <h1>津波防災 <span>もしも再現</span></h1>
-        <p class="lead">地図で地点を選ぶと、<strong>公式の浸水想定</strong>と<strong>津波から逃げる場所</strong>が出ます。さらに、その街に<strong>仮定の津波</strong>が水として押し寄せる様子を、物理計算で再現できます。</p>
+        <p class="lead"><strong>まず、自宅や職場の近くを、地図か名前で選んでください。</strong>公式の浸水の想定と、津波から逃げる場所が出ます。<span class="sim-only">そのあと、3Dで「もしも」の津波の動きを見ることもできます。</span></p>
       </header>
+      <p id="gpu-note" class="info" hidden>この端末（ブラウザ）では、3Dの再現は使えません。<b>公式想定と逃げる場所は、このまま見られます。</b><small>3Dの再現は WebGPU に対応したブラウザ（Chrome・Edge 113以降、Safari 26以降）で動きます。</small></p>
       <form id="search" class="search" autocomplete="off">
         <input id="q" type="search" placeholder="住所・地名で探す（例：高知市種崎）" aria-label="住所・地名で探す" />
         <button type="submit">検索</button>
@@ -31,11 +31,11 @@
       <ul id="results" class="results" hidden></ul>
       <div class="presets" id="presets" aria-label="よく使う地点"></div>
       <p class="hint">または地図をクリック（タップ）して地点を選びます。</p>
-      <p id="gpu-note" class="info" hidden>この端末（ブラウザ）では、3Dの再現は使えません。<b>公式想定と逃げる場所は、このまま見られます。</b><small>3Dの再現は WebGPU に対応したブラウザ（Chrome・Edge 113以降、Safari 26以降）で動きます。</small></p>
 
       <div id="sel" class="sel" hidden>
         <div class="sel-place"><span id="sel-name">—</span><small id="sel-sub"></small></div>
         <p id="sel-zero" class="zero" hidden></p>
+        <a href="#sim-setup" class="jump sim-only">↓ 3Dで再現する（この下にあります）</a>
         <section id="brief" class="brief" aria-label="この地点の公式想定と、津波から逃げる場所" hidden></section>
         <p id="brief-live" class="sr-only" role="status" aria-live="polite"></p>
 
@@ -83,7 +83,7 @@
         </div>
       </div>
 
-      <figure class="terms">
+      <figure class="terms sim-only">
         <svg viewBox="0 0 320 120" role="img" aria-label="海の高さは海岸での海面の高さ、ここの深さは地面から水面までの深さ">
           <path d="M0 78 L120 78 L150 70 L320 58 L320 120 L0 120Z" fill="#c9b99a"/>
           <path d="M0 40 C40 38 80 42 118 40 L170 46 L320 46 L320 58 L150 70 L120 78 L0 78Z" fill="#4fb3d9" opacity=".75"/>
@@ -98,9 +98,12 @@
         </svg>
         <figcaption>「海の高さ」は海岸での値、「ここの深さ」は選んだ地点の地面からの深さです。</figcaption>
       </figure>
-      <p class="fineprint"><b>防潮壁は国土地理院の「堤防等に接する海岸線・河岸」の位置に、指定した高さで入れます（実際の防潮壁は岸壁より内陸側にある区間もあります）。沖の高潮防波堤は含みません。</b>幅のある堤防や盛土（線路・道路）は地形として効きます。<br />仮定の再現であり、予測ではありません。地形・建物・津波の形を単純化しています。避難の判断には、自治体のハザードマップと、津波警報・注意報を使ってください。</p>
+      <p class="fineprint sim-only"><b>防潮壁は国土地理院の「堤防等に接する海岸線・河岸」の位置に、指定した高さで入れます（実際の防潮壁は岸壁より内陸側にある区間もあります）。沖の高潮防波堤は含みません。</b>幅のある堤防や盛土（線路・道路）は地形として効きます。</p>
+      <p class="fineprint">3Dの再現は仮定の計算で、予測ではありません。地形・建物・津波の形を単純化しています。避難の判断には、自治体のハザードマップと、津波警報・注意報を使ってください。</p>
       <p class="fineprint"><b>数字の出典</b>：公式想定＝内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）ケース01の浸水データを100mに集約。深さの目安＝内閣府 南海トラフ巨大地震の被害想定の手法（浸水深30cm以上で死者が発生し始め、1mでは津波に巻き込まれた人のすべてが亡くなると仮定）、気象庁（20〜30cm程度でも速い流れに巻き込まれるおそれ。木造家屋は2mで全面破壊に至る目安）。逃げる場所＝国土地理院「指定緊急避難場所データ」（津波）。確認日 2026-11-10。</p>
     </aside>
+    <div id="map"></div>
+    <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。黄は浅い（浅くても流されます）、赤・紫ほど深い。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>
   </section>
 
   <!-- 2. 読み込み -->
@@ -112,19 +115,20 @@
         <li data-k="plan">海の位置を探す</li>
         <li data-k="data">地形（5m）・建物・航空写真を読み込む</li>
         <li data-k="grid">計算格子を組み立てる</li>
-        <li data-k="gpu">GPUの計算とシェーダーを準備する</li>
+        <li data-k="gpu">3Dの計算と表示を準備する</li>
       </ol>
       <div class="bar"><i id="load-bar"></i></div>
       <p id="load-msg" class="msg">準備中…</p>
-      <p class="tip">内閣府の被害想定は、浸水深 <b>0.3m</b> で津波に巻き込まれた人から死者が出始め、<b>1m</b> では全員が亡くなると仮定しています。気象庁は、20〜30cm でも速い流れに巻き込まれるおそれがあるとしています。</p>
+      <p class="tip">内閣府の被害想定は、浸水深 <b>0.3m</b> で津波に巻き込まれた人から亡くなる人が出始め、<b>1m</b> では巻き込まれた人の全員が亡くなると仮定しています。気象庁は、20〜30cm でも速い流れに巻き込まれるおそれがあるとしています。</p>
       <p class="load-btns"><button id="load-retry" class="primary" hidden>もう一度読み込む</button><button id="load-cancel" class="ghost">地点選択に戻る（公式想定は見られます）</button></p>
     </div>
   </section>
 
   <!-- 3. シミュレーション -->
   <section id="sim" class="screen" aria-label="シミュレーション">
+    <h2 class="sr-only">3Dの再現</h2>
     <div id="stage3d"></div>
-    <div class="badge" role="note"><b>もしも再現・予測ではありません</b><span>強い揺れ・長い揺れを感じたら、すぐ高い所へ</span></div>
+    <div class="badge" role="note"><b>もしも再現・予測ではありません</b><span>強い揺れ、弱くても長い揺れを感じたら、すぐ高い所へ</span></div>
     <div class="topbar">
       <div class="place"><b id="t-name">—</b><span id="t-h"></span></div>
       <button id="back" class="ghost small">地点を選び直す</button>
@@ -135,7 +139,7 @@
         <div class="big"><output id="h-now">0.00</output><span>m</span></div>
         <div id="h-say" class="say">この仮定ではまだ届いていません</div>
         <p id="h-say-live" class="sr-only" role="status" aria-live="polite"></p>
-        <div class="hud-off"><span class="k">公式想定（この付近の最大）</span><output id="h-off">—</output></div>
+        <div class="hud-off"><span class="k">公式想定（ケース01）</span><output id="h-off">—</output></div>
       </div>
       <button type="button" id="hud-more" class="ghost small hud-more" aria-expanded="false" aria-controls="hud-detail">くわしく</button>
       <div id="hud-detail" class="hud-detail">
@@ -225,6 +229,7 @@
     </div>
   </section>
 
+</main>
   <!-- わが家の避難メモ（どの画面からも開く。端末の中にだけ保存し、どこにも送らない） -->
   <div id="memo" class="modal memo-modal" hidden role="dialog" aria-modal="true" aria-labelledby="memo-title">
     <div class="card result-card">
@@ -232,10 +237,11 @@
       <h2 id="memo-title">わが家の避難メモ</h2>
       <p class="note">家族で話して、書いてみてください。書いたあと、<b>その場所まで実際に歩いて、かかる時間を測る</b>と確かです（夜や雨の日も）。</p>
       <p class="src" id="memo-place"></p>
+      <p class="warn" id="memo-other" hidden></p>
       <div id="memo-fields" class="memo-fields"></div>
-      <p class="src">書いた内容は、この端末の中にだけ保存します（どこにも送りません）。ブラウザの履歴やデータを消すと、消えることがあります。<b>印刷して、家族で持ってください。</b>名前を書いた紙を貼る場所には気をつけてください。</p>
-      <p class="brief-links"><button type="button" class="primary" id="memo-print">印刷する（PDFに保存もできます）</button><span id="memo-saved" class="src" role="status" aria-live="polite"></span></p>
-      <p class="src">印刷には、書いた内容・公式想定・指定緊急避難場所を載せます。3Dの再現の数字は載せません。</p>
+      <p class="src">書いた内容は、この端末の中にだけ保存します（どこにも送りません）。ブラウザの履歴やデータを消すと、消えることがあります。<b>印刷して、家族で持ってください。</b>名前を書いた紙を貼る場所には気をつけてください。学校や図書館など、ほかの人も使う端末では、印刷したあとで「書いた内容を消す」を押してください。</p>
+      <p class="brief-links"><button type="button" class="primary" id="memo-print">印刷する（PDFに保存もできます）</button><button type="button" class="ghost" id="memo-clear">書いた内容を消す</button><span id="memo-saved" class="src" role="status" aria-live="polite"></span></p>
+      <p class="src">印刷には、書いた内容・公式想定（深さ）・指定緊急避難場所を載せます。3Dの再現の数字と、到達の時刻は載せません。</p>
     </div>
   </div>
   <div id="print-sheet" class="print-sheet" aria-hidden="true"></div>

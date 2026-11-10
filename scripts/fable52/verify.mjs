@@ -32,7 +32,7 @@ async function open(browser, vp, url, run) {
     if (m.type() === 'warning') run.warnings.push(m.text().slice(0, 200));
     if (m.type() !== 'error') return;
     let t = m.text();
-    if (t.includes('JSHandle')) t = (await Promise.all(m.args().map((a) => a.evaluate((v) => (v instanceof Error ? `${v.name}: ${v.message}` : String(v))).catch(() => '?')))).join(' ');
+    if (t.includes('JSHandle')) t = (await Promise.all(m.args().map((a) => a.evaluate((v) => (v instanceof Error ? `${v.name}: ${v.message} ${String(v.stack).split('\n').slice(1, 4).join(' | ')}` : v?.error ? `${v.error.name}: ${v.error.message} ${String(v.error.stack).split('\n').slice(1, 4).join(' | ')}` : typeof v === 'object' ? JSON.stringify(v).slice(0, 200) : String(v))).catch(() => m.text() + ' @' + JSON.stringify(m.location()))))).join(' ');
     // 国土地理院の標高タイルは、海のタイルに 404 を返す（仕様）。ブラウザが出すその行は「想定内」に分ける
     if (/Failed to load resource.*404/.test(t)) { (run.expected404 ??= []).push(t.slice(0, 120)); return; }
     run.errors.push('console.error: ' + t.slice(0, 300));
@@ -88,6 +88,18 @@ async function flow(browser, name, vp, { preset = 'ガーデンふ頭', query = 
       if (n === 1) await page.evaluate(() => { const c = document.getElementById('tg-depth'); if (!c.checked) c.click(); });
       await sleep(800);
       await shot(page, run, `4sim_${target}s`);
+      // 重なりの実測：常設の札・上の帯・右の欄（HUD）・下のドック・通知が、互いに重ならず、画面内にあること
+      (run.overlaps ??= []).push(await page.evaluate(() => {
+        const R = (s) => { const e = document.querySelector(s); if (!e || e.hidden || !e.offsetParent) return null; const r = e.getBoundingClientRect(); return { s, x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }; };
+        const list = ['.badge', '.topbar', '.hud', '.dock', '#toast'].map(R).filter(Boolean);
+        const out = [];
+        for (let i = 0; i < list.length; i++) {
+          const a = list[i];
+          if (a.y1 > innerHeight + 1 || a.x1 > innerWidth + 1 || a.x0 < -1 || a.y0 < -1) out.push(`${a.s} 画面外`);
+          for (let j = i + 1; j < list.length; j++) { const b = list[j]; const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0); if (w > 2 && h > 2) out.push(`${a.s}×${b.s} ${Math.round(w)}×${Math.round(h)}`); }
+        }
+        return out;
+      }));
       run.hud.push({ t: Math.round(done), clock: await text(page, '#clock'), phase: await text(page, '#phase'), now: await text(page, '#h-now'), say: await text(page, '#h-say'), max: await text(page, '#h-max'), arr: await text(page, '#h-arr'), off: await text(page, '#h-off') });
     }
     if (extra) await extra(page, run);
@@ -171,6 +183,9 @@ if (want('pc')) await flow(browser, 'pc1440', PC, { simSeconds: [240, 660, 1080,
 // 届かない条件（海の高さ2m・防潮壁4.6m）を共有リンクの形で開き、最後まで：「届かなかった」の書き方を確かめる
 if (want('noreach')) await flow(browser, 'noreach_pc1440', PC, { query: '&lat=35.0905&lon=136.8844&h=2&n=512', simSeconds: [600, 2360] });
 if (want('noreach')) await flow(browser, 'noreach_sp390', SP, { query: '&lat=35.0905&lon=136.8844&h=2&n=512', simSeconds: [2360] });
+// タブレット幅と横長：右の欄と下のドックが重ならないこと
+if (want('tablet')) await flow(browser, 'tab768', { width: 768, height: 1024, deviceScaleFactor: 1 }, { simSeconds: [700, 1080] });
+if (want('tablet')) await flow(browser, 'land1024', { width: 1024, height: 768, deviceScaleFactor: 1 }, { simSeconds: [700, 1080] });
 // 内陸（名古屋駅・二段ネスト計算）が今までどおり動くこと（回帰）
 if (want('inland')) await flow(browser, 'inland_pc1440', PC, { query: '&lat=35.1709&lon=136.8815&n=512', simSeconds: [300, 1500] });
 // 名古屋以外（高知市種崎）：全国の逃げる場所と、ケース01が最大でない地域の注意
@@ -184,5 +199,6 @@ if (want('nogl')) await nogpu('nogl_sp390', SP, false);
 // 404 は「国土地理院の標高タイル（海）」だけであることを確かめる。それ以外の 4xx/5xx はエラーに数える
 for (const r of report.runs) for (const h of r.http4xx ?? []) if (!/^404 https:\/\/cyberjapandata\.gsi\.go\.jp\/xyz\/dem(5a)?_png\//.test(h)) r.errors.push('http: ' + h);
 fs.writeFileSync(path.join(OUT, `${LABEL}_report.json`), JSON.stringify(report, null, 2));
+for (const r of report.runs) if (r.overlaps?.flat().length) console.log(`  [${r.name}] 重なり: ${[...new Set(r.overlaps.flat())].join(' / ')}`);
 for (const r of report.runs) console.log(`${r.name}: errors=${r.errors.length} failed=${r.failed.length} shots=${r.shots.length} perf=${r.perfText ?? '-'} load=${r.loadMs ?? '-'}ms`);
 for (const r of report.runs) for (const e of r.errors) console.log(`  [${r.name}] ${e}`);
