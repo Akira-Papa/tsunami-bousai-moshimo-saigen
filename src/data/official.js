@@ -89,13 +89,20 @@ export function caseNote(row) {
   return { c1, max, tops, lower: c1 < max };
 }
 
+/**
+ * a 100 m cell counts as land when its centre OR any of four points 30 m around it is land: a cell half over
+ * the quay still carries a land value. Used by the 2-D card (DEM) and the 3-D run (grid) alike, so both show the same figure.
+ * @param landAt (dx, dz) => boolean  — offsets in metres from the cell centre (x east, z south)
+ */
+export const cellHasLand = (landAt) => [[0, 0], [30, 30], [30, -30], [-30, 30], [-30, -30]].some(([x, z]) => landAt(x, z));
+
 /** official cells around one lat/lon (GPU-free; used by the pick screen) */
 export async function officialNear(lat, lon, L = 1200) {
   const frame = makeFrame(lat, lon);
   let off;
   try { off = await loadOfficialCells(frame, L); } catch { off = { cells: [], covered: false, available: false }; }
   const cell = officialAt(off, 0, 0);
-  return { off, cell, state: officialState(off, cell), around: officialAround(off, 0, 0) };
+  return { off, cell, state: officialState(off, cell), around: officialAround(off, 0, 0), partial: (off.failedTiles ?? 0) > 0 };
 }
 
 /** flooded cells inside a lon/lat box, for the 2-D map (rows: [lon, lat, depth, arrival]) */

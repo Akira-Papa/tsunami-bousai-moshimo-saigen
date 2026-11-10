@@ -6,10 +6,11 @@ import { createPicker } from './picker.js';
 import { planDomain, tsunamiHeightAt } from './data/plan.js';
 import { buildRegion, buildOuterRegion } from './data/region.js';
 import { syntheticRegion } from './data/synthetic.js';
-import { officialAt, officialState, officialAround, caseNote } from './data/official.js';
+import { officialAt, officialState, officialAround, caseNote, cellHasLand } from './data/official.js';
 import { createBrief, evacHtml, edgeJa } from './brief.js';
+import { distJa } from './data/evac.js';
 import { createMemo } from './memo.js';
-import { $, esc, depthSay, hazardMapUrl, arrivalJa, openDialog, closeDialog, isDialogOpen, anyDialogOpen } from './ui.js';
+import { $, esc, depthSay, hazardMapUrl, arrivalJa, arrivalSentence, openDialog, closeDialog, isDialogOpen, anyDialogOpen } from './ui.js';
 import { makeFrame } from './data/geo.js';
 import { createSolver } from './sim/swe.js';
 import { createWorld } from './render/world.js';
@@ -42,25 +43,31 @@ function setGpuUi(why = null) {
 const sel = { lat: null, lon: null, plan: null, info: null, token: 0, briefP: null, defaults: null };
 const picker = createPicker({ onPick });
 const brief = createBrief({ map: picker.map });
-const memo = createMemo({ getContext: () => ({ name: sel.info?.name ? `${sel.info.name}${sel.info.place ? ' ' + sel.info.place : ''}` : '', lat: sel.lat, lon: sel.lon, info: sel.info, official: brief.current?.official, evac: brief.current?.evac }) });
+const memo = createMemo({ getContext: () => ({ name: placeName(sel.info), lat: sel.lat, lon: sel.lon, info: sel.info, official: brief.current?.official, evac: brief.current?.evac }) });
 document.addEventListener('memo', () => memo.open());
 setGpuUi();
+/** the place name as shown everywhere (pick card, 3-D top bar, memo, print): a guessed municipality is never shown as fact */
+const placeName = (info) => (info?.guessed ? `選んだ地点（${info.name || '市区町村は不明'}の近く）` : info?.name ? `${info.name}${info.place ? ' ' + info.place : ''}` : '');
+
 /** everything on the card that depends on the municipality (name, initial sea height, tide / seawall defaults) */
 function showInfo(info, lat, lon) {
   sel.info = info;
-  brief.setInfo(info);
+  brief.setInfo(info ?? { failed: true });
   // a guessed municipality (the reverse geocoder did not answer) must not choose the tide / seawall defaults
-  applyDefaults(regionDefaults(lat, lon, info?.guessed ? null : info?.code));
-  $('sel-name').textContent = info?.guessed ? `選んだ地点（${info.name || '市区町村は不明'}の近く）` : info?.name ? `${info.name}${info.place ? ' ' + info.place : ''}` : '選んだ地点';
+  applyDefaults(regionDefaults(lat, lon, info?.code, !!info?.guessed));
+  $('sel-name').textContent = placeName(info) || '選んだ地点';
   if (info?.H != null && info.guessed) {
     setH(info.H);
-    $('Hsrc').textContent = `この地点の市区町村を特定できませんでした（通信）。近くの「${info.borrowed ?? info.name}」の海岸最大津波高 ${info.H}m を仮の初期値にしています。潮位・防潮壁の条件も、近くの市区町村のものです。地点を選び直すと、もう一度確かめます。`;
+    $('Hsrc').textContent = `この地点の市区町村を特定できませんでした（通信）。近くの「${info.borrowed ?? info.name}」の海岸最大津波高 ${info.H}m を仮の初期値にしています。潮位と防潮壁も、この地域の値を確かめられないため、仮の条件（防潮壁なし）です。分かりしだい、正しい値に差し替えます。`;
   } else if (info?.H != null && info.borrowed) {
     setH(info.H);
     $('Hsrc').textContent = `この地点の市区町村は内閣府（2025）の津波高一覧にないため、近くの「${info.borrowed}」の海岸最大津波高 ${info.H}m を初期値にしています（代用値）。スライダーで変えられます。`;
   } else if (info?.H != null) {
     setH(info.H);
     $('Hsrc').textContent = `初期値は内閣府（2025）南海トラフ巨大地震の「${info.name}」海岸最大津波高 ${info.H}m（11ケースの最大・満潮位と地殻変動を考慮）。スライダーで変えられます。`;
+  } else if (!info) {
+    setH(5);
+    $('Hsrc').textContent = '津波高の一覧を取得できませんでした（通信）。仮に 5m で試せます（公式の値ではありません）。地点を選び直すと、もう一度取得します。';
   } else {
     setH(5);
     $('Hsrc').textContent = 'この市区町村は内閣府（2025）の南海トラフ津波高一覧に含まれていません。仮に 5m で試せます（公式の値ではありません）。';
@@ -91,7 +98,11 @@ async function onPick(lat, lon) {
   // background and put the real one in when it arrives — unless the reader has already changed the conditions
   if (info?.guessed) tsunamiHeightAt(lat, lon, 30000).then((better) => {
     if (token !== sel.token || !better || better.guessed || app) return;
-    if (sel.touched) { sel.info = better; brief.setInfo(better); $('sel-name').textContent = `${better.name}${better.place ? ' ' + better.place : ''}`; return; }
+    if (sel.touched) {
+      sel.info = better; brief.setInfo(better); $('sel-name').textContent = placeName(better);
+      $('Hsrc').textContent = `市区町村は「${better.name}」と分かりました。条件はすでに変更されているので、そのままにしています（この地点の公式の値に戻すには、地点を選び直してください）。`;
+      return;
+    }
     showInfo(better, lat, lon); updateCond();
   }).catch(() => {});
   const elev = plan?.here;
@@ -100,7 +111,7 @@ async function onPick(lat, lon) {
   const zero = $('sel-zero');
   if (Number.isFinite(elev) && elev < 0.5) {
     zero.hidden = false;
-    zero.innerHTML = elev < 0 ? `この土地は海面より <b>${Math.abs(elev).toFixed(1)}m 低い</b> 海抜ゼロメートル地帯です。堤防を越えた水が入ると、排水されるまで長く残ることがあります。水が来る前に、高い所（指定された逃げる場所や、丈夫な建物の上の階）へ。` : `この土地の標高は <b>${elev.toFixed(1)}m</b>。ほぼ海面と同じ高さです。入った水は引きにくく、長く残ることがあります。`;
+    zero.innerHTML = elev < 0 ? `この土地は海面より <b>${Math.abs(elev).toFixed(1)}m 低い</b> 海抜ゼロメートル地帯です。堤防を越えた水が入ると、排水されるまで長く残ることがあります。水が来る前に、高い所（指定された逃げる場所や、丈夫な建物の上の階）へ。` : `この土地の標高は <b>${elev.toFixed(1)}m</b>。ほぼ海面と同じ高さです。入った水は引きにくく、長く残ることがあります。水が来る前に、高い所へ。`;
   } else zero.hidden = true;
   updateCond();
   if (!gpuOk) return; // no 3-D run on this device: nothing below applies
@@ -127,7 +138,17 @@ async function onPick(lat, lon) {
 //  名古屋港: 朔望平均満潮位 N.P.+2.61m = T.P.+1.20m（名古屋港管理組合「名古屋港の潮位」、愛知県 解説書 表-2）
 //            防潮壁 天白川河口〜庄内川河口 26.4km、天端 N.P.+6.0〜6.5m = T.P.+4.6〜5.1m（名古屋港管理組合「名古屋港の防災」）
 //  愛知県の他港: 初期潮位 T.P.+1.0m（愛知県 解説書 表-2, 6港平均）
-function regionDefaults(lat, lon, code) {
+function regionDefaults(lat, lon, code, guessed = false) {
+  // the municipality is only a guess (the reverse geocoder did not answer): no seawall — the side that lets MORE
+  // water in — and the Nagoya-port tide inside the port area. Replaced when the real answer arrives.
+  if (guessed) {
+    const port = lat > 35.0 && lat < 35.20 && lon > 136.80 && lon < 136.98;
+    return {
+      tide: port ? 1.2 : 0, levee: false, crest: 4.6,
+      tideSrc: `市区町村を特定できなかったため、仮の潮位（T.P.+${port ? '1.2' : '0.0'}m）です。`,
+      crestSrc: '市区町村を特定できなかったため、防潮壁は入れていません（その分、水は多めに入ります）。',
+    };
+  }
   // the 26.4 km seawall runs 天白川河口〜庄内川河口 = the coastal wards of Nagoya city only
   // (東海市・知多市 are also in the port area but outside that line → no confirmed crest there)
   const c = String(code ?? '');
@@ -153,7 +174,7 @@ function regionDefaults(lat, lon, code) {
 function applyDefaults(d) {
   sel.defaults = d;
   $('tide').value = d.tide; $('tideOut').textContent = `T.P.+${d.tide.toFixed(1)}m`; $('tideSrc').textContent = d.tideSrc;
-  $('levee').checked = d.levee; $('crest').value = d.crest; $('crestOut').textContent = `T.P.+${d.crest.toFixed(1)}m`; $('crestSrc').textContent = d.crestSrc;
+  $('levee').checked = d.levee; $('breach').checked = true; $('crest').value = d.crest; $('crestOut').textContent = `T.P.+${d.crest.toFixed(1)}m`; $('crestSrc').textContent = d.crestSrc;
   syncLevee();
 }
 function syncLevee() { const on = $('levee').checked; $('crest').disabled = !on; $('breach').disabled = !on; }
@@ -427,7 +448,9 @@ async function createApp(region, o) {
   // four states that must never be mixed up: hit / none (in ケース01) / outside the data / could not load
   const offState = region.synthetic ? 'outside' : officialState(official, offCell);
   // the deepest official value within 300 m, on land only (the official mesh also has cells over harbour water)
-  const isLandCell = (c) => { const i = Math.floor((c.x + L / 2) / dx), j = Math.floor((c.z + L / 2) / dx); return i < 0 || j < 0 || i >= N || j >= N || !region.water[j * N + i]; };
+  // same rule as the 2-D card (cellHasLand): the centre or any point 30 m around it on land
+  const landAt = (x, z) => { const i = Math.floor((x + L / 2) / dx), j = Math.floor((z + L / 2) / dx); return i < 0 || j < 0 || i >= N || j >= N || !region.water[j * N + i]; };
+  const isLandCell = (c) => cellHasLand((ox, oz) => landAt(c.x + ox, c.z + oz));
   const offAround = officialAround(official, pinX, pinZ, 300, isLandCell);
   const offDeeper = offAround.n && offAround.max > (offCell?.depth ?? 0) + 0.05;
   // never a bare "no cell" / "outside" / "failed": the caveat is part of the text (a title attribute cannot be read on a phone)
@@ -439,7 +462,7 @@ async function createApp(region, o) {
   };
 
   // HUD static bits
-  $('t-name').textContent = o.demo ? '合成の港町（デモ）' : (o.info?.name ? `${o.info.name}${o.info.place ? ' ' + o.info.place : ''}` : '選んだ地点');
+  $('t-name').textContent = o.demo ? '合成の港町（デモ）' : (placeName(o.info) || '選んだ地点');
   $('t-h').textContent = `海の高さ${H.toFixed(1)}m（仮定）${(o.tide ?? 0) > 0 ? `・満潮+${o.tide.toFixed(1)}` : ''}${region.leveeCells ? `・防潮壁${o.levee.crest.toFixed(1)}m` : ''}`;
   $('t-h').title = `海の高さ ${H.toFixed(1)}m（T.P.・仮定）／はじめの潮位 T.P.+${(o.tide ?? 0).toFixed(1)}m${region.leveeCells ? `／防潮壁 天端 T.P.+${o.levee.crest.toFixed(1)}m・${o.breach ? '越流したら破壊' : '壊れない'}` : '／防潮壁なし'}` +
     (solver.washDepth > 0 ? `／木造家屋 ${solver.woodHouses}棟は浸水深${solver.washDepth}mで流失` : '／木造家屋の流失なし');
@@ -447,7 +470,7 @@ async function createApp(region, o) {
   $('h-gnd').textContent = `${pinGround >= 0 ? '' : '−'}${Math.abs(pinGround).toFixed(1)}m${pinGround < 0 ? '（海面より低い）' : ''}`;
   $('h-gnd').title = moved > 3 ? `建物を避けて約${Math.round(moved)}m先の地面に柱を立てました（5mメッシュの標高）` : '5mメッシュの標高';
   $('h-note').textContent = moved > 3 ? `建物の中を避け、約${Math.round(moved)}m先の地面に柱を立てています（標高は5mメッシュ）。` : '';
-  $('h-rel').innerHTML = H > pinGround ? `${(H - pinGround).toFixed(1)}m上` : `地面が${(pinGround - H).toFixed(1)}m高い<small>安全という意味ではありません</small>`;
+  $('h-rel').innerHTML = H > pinGround ? `${(H - pinGround).toFixed(1)}m上${far ? `<small>海から約${(o.plan.distance / 1000).toFixed(1)}km。この高さの水が、そのまま来るわけではありません</small>` : ''}` : `地面が${(pinGround - H).toFixed(1)}m高い<small>安全という意味ではありません</small>`;
   $('h-off').innerHTML = OFF_SHORT[offState];
   $('h-off').title = { hit: '内閣府2025・ケース01 を100mに集約した最大浸水深', none: 'ケース01では、この100m四方に浸水のセルがありません。安全という意味ではありません', outside: 'このサイトが収録している公式データの範囲の外です。「浸水しない」という意味ではありません', failed: '公式想定を取得できませんでした（通信）。「浸水しない」という意味ではありません' }[offState];
 
@@ -684,7 +707,7 @@ async function createApp(region, o) {
     // not there yet: never a bare "not reached" — put the official figure (or the plain caveat) next to it
     if (h < 0.01) {
       const head = lead.time > total ? (st.arrived != null ? 'いまは水が引いています' : 'この仮定では、計算の間、ここに水は届きませんでした') : 'この仮定ではまだ届いていません';
-      return [offState === 'hit' ? `${head}。公式想定は、この付近で最大${offCell.depth.toFixed(1)}m` : `${head}（安全という意味ではありません）`, ''];
+      return [offState === 'hit' ? `${head}（安全という意味ではありません）。公式想定は、この付近で最大${Math.max(offCell.depth, offDeeper ? offAround.max : 0).toFixed(1)}m` : `${head}（安全という意味ではありません）`, ''];
     }
     return depthSay(h);
   }
@@ -750,9 +773,9 @@ async function createApp(region, o) {
   const OFF_SENT = () => {
     const arr = arrivalJa(offCell?.arrival);
     const cn = caseNote(o.info?.row);
-    const tail = cn?.lower ? `<br><strong>ケース01は、この地域で津波が最も高くなるケースではありません</strong>（海岸の最大津波高：ケース01では${cn.c1}m、11ケースの最大は${cn.max}m）。浸水は、公式想定のこの値より深く・広くなることがあります。` : '';
+    const tail = cn?.lower ? `<br><strong>ケース01は、この地域で津波が最も高くなるケースではありません</strong>（海岸の最大津波高：ケース01では${cn.c1}m、11ケースの最大は${cn.max}m）。浸水は、公式想定のこの値より深く・広くなることがあります。` : cn ? '' : '<br>この地域のケース別の津波高は確認できていません。ケース01より深く・広くなることがあります。';
     const s = {
-      hit: offCell ? `公式想定（内閣府2025・ケース01）は、この100m四方で最大 <b class="num">${offCell.depth.toFixed(1)}m</b>${offDeeper ? `、周り300m以内では最大 <b class="num">${offAround.max.toFixed(1)}m</b>` : ''}。${arr ? `地震から最も早くて${arr}で水が来はじめる想定です。` : ''}<span class="notsafe">逃げるまでの猶予の時間ではありません</span>（${OTHER}もっと早く・深くなることがあります）。` : '',
+      hit: offCell ? `公式想定（内閣府2025・ケース01）は、この100m四方で最大 <b class="num">${offCell.depth.toFixed(1)}m</b>${offDeeper ? `、周り300m以内では最大 <b class="num">${offAround.max.toFixed(1)}m</b>` : ''}。${arrivalSentence(offCell.arrival).replace(/<\/?b>/g, '')}<span class="notsafe">逃げるまでの猶予の時間ではありません</span>（${OTHER}もっと早く・深くなることがあります）。` : '',
       none: `公式想定（内閣府2025・ケース01）では、この100m四方に浸水のセルはありません。${offAround.n ? `<strong>ただし、${edgeJa(offAround.edge)}浸水の想定があります（周り300m以内の最大 <b class="num">${offAround.max.toFixed(1)}m</b>）。</strong>` : ''}<span class="notsafe">安全という意味ではありません</span>（${OTHER}浸水することがあります）。`,
       outside: 'この地点は、このサイトが収録している公式データの範囲の外です（<span class="notsafe">「浸水しない」という意味ではありません</span>）。自治体のハザードマップで確かめてください。',
       failed: '公式想定は取得できませんでした（通信）。<span class="notsafe">「浸水しない」という意味ではありません。</span>',
@@ -766,6 +789,14 @@ async function createApp(region, o) {
     $('r-evac').innerHTML = o.demo ? '<p class="brief-none">合成の街（デモ）のため、逃げる場所のデータはありません。</p>' : evacHtml(null);
     $('r-hazard').href = o.lat != null ? hazardMapUrl(o.lat, o.lon) : 'https://disaportal.gsi.go.jp/';
     $('r-share-msg').textContent = '';
+    // the nearest designated place goes right under the call to act: on a phone the full list can fall below the first screen
+    $('r-near').hidden = true;
+    o.briefP?.then((bf) => {
+      const s = bf?.evac?.status === 'ok' ? bf.evac.sites[0] : null;
+      if (!s || !isDialogOpen($('result'))) return;
+      $('r-near').innerHTML = `いちばん近い、津波の指定緊急避難場所：<b>${esc(s.name)}</b>　直線で${distJa(s.d)}・${s.bearing}の方向<small>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。ほかの場所は下の一覧に。</small>`;
+      $('r-near').hidden = false;
+    }).catch(() => {});
     if (!isDialogOpen($('result'))) {
       $('r-detail').open = !isSmall;
       openDialog($('result'), { opener: $('result-btn'), onClose: () => { labels.domElement.style.visibility = ''; } });
@@ -807,7 +838,10 @@ async function createApp(region, o) {
     const simTop = Math.max(reached ? pm[0] : 0, cell100);
     const hi = Math.max(simTop, offTop);
     const hiFrom = offTop >= simTop ? (offDeeper || !offCell ? '公式想定・周り300m以内の最大' : '公式想定') : 'この再現';
-    const prep = hi > 0.01 ? `<p class="r-prep">備えは、いちばん深い値（<b class="num">${hi.toFixed(1)}m</b>・${hiFrom}）で考えてください。<small>${esc(depthSay(hi)[0])}</small></p>` : '';
+    // a shallow figure is not something to "prepare for": below 0.3 m the line says so instead (善進本町: 0.2 m nearby,
+    // on land below sea level, with a 5 m tsunami on its coast)
+    const prep = hi >= 0.3 ? `<p class="r-prep">備えは、少なくとも、いちばん深い値（<b class="num">${hi.toFixed(1)}m</b>・${hiFrom}）で考えてください。${isSmall ? '' : `<small>${esc(depthSay(hi)[0])}</small>`}</p>`
+      : hi > 0.01 ? `<p class="r-prep">ここに出ている浅い値（最大${hi.toFixed(1)}m）は、1つのケース・1つの条件だけの値で、備えの上限ではありません。<small>堤防を越えた水や、ほかのケースでは、もっと深く来ることがあります。水が来る前に、高い所へ。</small></p>` : '';
     const offP = `<p class="r-offline${offState === 'hit' || offAround.n ? ' strong' : ''}">${OFF_SENT()}</p>`;
     // conditions that no official scenario uses are named at the top, not only in the folded details
     const odd = [];
@@ -816,7 +850,7 @@ async function createApp(region, o) {
     const oddP = odd.length ? `<p class="r-odd">この結果は、${odd.join('、')}で計算しています。安全の根拠にはなりません。</p>` : '';
     let key;
     if (!done) {
-      key = `<p class="r-amber"><strong>まだ途中です（再現の時計 ${fmt(lead.time - lead.wave.pre)}）。</strong>途中の数字は結果ではありません。最後まで再生してから、もう一度開いてください。${reached ? `ここまでの最大は ${pm[0].toFixed(1)}m で、まだ増えることがあります。` : ''}</p>${offP}${offTop > 0.01 ? prep : ''}`;
+      key = `<p class="r-amber"><strong>まだ途中です（再現の時計 ${fmt(lead.time - lead.wave.pre)}）。</strong>途中の数字は結果ではありません。最後まで再生してから、もう一度開いてください。${reached ? `ここまでの最大は ${pm[0].toFixed(1)}m で、まだ増えることがあります。` : ''}</p>${oddP}${offP}${offTop > 0.01 ? prep : ''}`;
     } else if (reached) {
       key = `<p class="r-main">この仮定の波では、ここの深さは最大 <b class="num">${pm[0].toFixed(1)}m</b> になりました${cell100 > pm[0] + 0.05 ? `（周りの100m四方では最大${cell100.toFixed(1)}m）` : ''}。</p>${oddP}${offP}${prep}`;
     } else {
@@ -835,7 +869,7 @@ async function createApp(region, o) {
         const hit = tall.evac.find((e) => typeof e.b.attrs.evac === 'string' && (e.b.attrs.evac === s.name || e.b.attrs.evac.includes(s.name) || s.name.includes(e.b.attrs.evac)));
         if (hit?.low) notes.set(s.name, `<span class="evac-low">この再現では、建物の高さ（約${hit.hEff.toFixed(0)}m）が「水位＋2m」（地面から約${hit.need.toFixed(1)}m）に届きません。上の階まで水が来るおそれがあります。</span>`);
       }
-      $('r-evac').innerHTML = bf?.evac ? evacHtml(bf.evac, { notes, letters: false }) : evacHtml({ status: 'failed', sites: [] });
+      $('r-evac').innerHTML = bf?.evac ? evacHtml(bf.evac, { notes, letters: false, compact: true }) : evacHtml({ status: 'failed', sites: [] });
     }
 
     $('r-sub').textContent = `${$('t-name').textContent}　計算範囲 ${outerSolver ? `広域 ${(outerSolver.L / 1000).toFixed(1)}km四方（約${outerSolver.dx.toFixed(0)}m）＋地点周り ` : ''}${(L / 1000).toFixed(1)}km四方・格子 ${N}²（約${dx.toFixed(1)}m）・再現の時計 ${fmt(lead.time - lead.wave.pre)}（計算の始まりから）${done ? '' : '（まだ途中の値です）'}`;
@@ -859,7 +893,7 @@ async function createApp(region, o) {
       failed: '<div><dt>この範囲</dt><dd><small>公式想定を取得できませんでした（通信）。「浸水しない」という意味ではありません。地点を選び直すと、もう一度取得します。</small></dd></div>',
     }[offState];
     $('r-note').innerHTML = `<b>時刻について</b>：再現の時計は、計算の始まりからの時間で、実際の津波の時刻ではありません。公式想定の時刻は、地震が起きてからの、ケース01の最も早い到達です。どちらも、逃げるまでの猶予の時間ではありません。<br>` +
-      (pinGround < 0.3 ? '<b>海抜ゼロメートル地帯では、入った水は引きにくく、排水されるまで長く残ることがあります。</b>水が来る前に、高い所へ。水・食べ物・薬・トイレの備えも。<br>' : '') +
+      (pinGround < 0.3 ? '<b>海面と同じか、海面より低い土地では、入った水は引きにくく、排水されるまで長く残ることがあります。</b>水が来る前に、高い所へ。水・食べ物・薬・トイレの備えも。<br>' : '') +
       `<b>再現と公式想定のちがい</b>：再現は、海岸に「海の高さ」（公式の11ケースの最大が初期値）の波を1つ入れた仮定の計算です。公式想定の枠は、ケース01だけの値です。${region.leveeCells ? '防潮壁は岸の線に置いた近似で、' : '防潮壁・水門、'}沖の高潮防波堤・地盤沈下・漂流物${solver.washDepth > 0 ? '' : '・建物の破壊'}は含みません${solver.washDepth > 0 ? '（建物の破壊は、木造家屋が浸水2mで流されることだけ）' : ''}。差は誤差ではなく、条件のちがいです。`;
     $('r-read').textContent = `文章で読む：${done ? (reached ? `この仮定の波では、選んだ地点は最大で${pm[0].toFixed(1)}メートルの深さになりました` : `この仮定の波では、計算した約${mins}分の間、選んだ地点に水は届きませんでした。安全という意味ではありません`) : 'まだ途中です'}。周辺100メートル四方では最大${cell100.toFixed(1)}メートル。公式想定は、${{ hit: offCell ? `最大${offCell.depth.toFixed(1)}メートル` : '', none: 'このケースでは浸水セルなし（安全という意味ではありません）', outside: '収録範囲の外', failed: '取得できませんでした' }[offState]}。強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ。`;
   }
@@ -926,6 +960,7 @@ async function createApp(region, o) {
     const offHead = anyTd ? '建物ごとの公式想定（PLATEAU）' : '建物の位置での公式想定（100m集約）';
     html += `<section class="rx"><h3>地点の近くの建物：${anyTd ? '建物ごとの公式想定' : '建物の位置での公式想定（100m集約）'} と この再現</h3>`;
     if (!rows.length) html += '<p class="src">地点から150m以内に比べられる建物がありません。</p>';
+    else if (!anyTd && offState === 'failed') html += '<p class="src">公式想定を取得できなかった（通信）ため、比べられません。「浸水しない」という意味ではありません。</p>';
     else if (!anyTd && !offOk) html += '<p class="src">この範囲は内閣府の浸水データの収録範囲外（未確認）のため、比べられません。「浸水しない」という意味ではありません。</p>';
     else {
       const both = rows.filter((r) => r.off != null && r.off > 0.01);

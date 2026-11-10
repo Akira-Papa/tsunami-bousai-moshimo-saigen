@@ -22,12 +22,15 @@ export function createMemo({ getContext }) {
   body.innerHTML = FIELDS.map(([id, , label, ph]) => `<label for="${id}">${label}</label><textarea id="${id}" rows="2" placeholder="${ph}"></textarea>`).join('');
   // the memo remembers which place it was written for: a memo for home must not be printed, unnoticed,
   // on top of the official figures of some other place the reader was only trying out
-  let place = '';
-  const values = () => ({ ...Object.fromEntries(FIELDS.map(([id, k]) => [k, $(id).value.trim()])), place });
+  // compared by position (2 decimals ≈ 1 km), not by name: the name can still be a guess when the memo is written
+  let place = '', pos = '';
+  const posOf = (c) => (c?.lat != null ? `${c.lat.toFixed(2)},${c.lon.toFixed(2)}` : '');
+  const values = () => ({ ...Object.fromEntries(FIELDS.map(([id, k]) => [k, $(id).value.trim()])), place, pos });
   const hasText = () => FIELDS.some(([id]) => $(id).value.trim());
   let saveT = 0;
   body.addEventListener('input', () => {
-    place = getContext()?.name || place;
+    const c = getContext();
+    if (c?.lat != null) { place = c.name || place; pos = posOf(c); }
     $('memo-other').hidden = true;
     clearTimeout(saveT);
     saveT = setTimeout(() => { $('memo-saved').textContent = write(values()) ? 'この端末に保存しました' : 'この端末には保存できませんでした（印刷して残してください）'; }, 400);
@@ -43,7 +46,9 @@ export function createMemo({ getContext }) {
       : o.state === 'hit' ? `この100m四方の最大浸水深 ${o.cell.depth.toFixed(1)}m${a?.n && a.max > o.cell.depth + 0.05 ? `、${near}（備えは深いほうで）` : ''}`
         : o.state === 'none' ? `このケースでは、この100m四方に浸水のセルなし${a?.n ? `。ただし、${edgeJa(a.edge)}浸水の想定があります（${near}）` : ''}。安全という意味ではありません`
           : o.state === 'outside' ? '収録している公式データの範囲の外（「浸水しない」という意味ではありません）' : '取得できませんでした（「浸水しない」という意味ではありません）';
-    const lower = cn?.lower && (o?.state === 'hit' || o?.state === 'none') ? '<p><b>ケース01は、この地域で津波が最も高くなるケースではありません。実際は、これより深く・広くなることがあります。</b></p>' : '';
+    const lower = !(o?.state === 'hit' || o?.state === 'none') ? ''
+      : cn?.lower ? '<p><b>ケース01は、この地域で津波が最も高くなるケースではありません。実際は、これより深く・広くなることがあります。</b></p>'
+        : cn ? '' : '<p>この地域のケース別の津波高は確認できていません。ケース01より深く・広くなることがあります。</p>';
     const ev = c.evac;
     const sites = ev?.status === 'ok' && ev.sites.length
       ? `<ol>${ev.sites.map((s) => `<li><b>${esc(s.name)}</b>　直線で${distJa(s.d)}・${s.bearing}の方向${s.address ? `<br>${esc(s.address)}` : ''}${s.remarks ? `<br>備考：${esc(s.remarks)}` : ''}</li>`).join('')}</ol><p>近い順で、おすすめの順ではありません。距離は直線です（道のりはもっと長くなります）。入口・開いている時間・何階まで上がるかは、市町村の情報で確かめてください。泊まるための「避難所」とは別です。</p>`
@@ -52,11 +57,11 @@ export function createMemo({ getContext }) {
     const today = new Date().toLocaleDateString('ja-JP');
     return `<h1>わが家の津波避難メモ</h1>
       <p class="p-quake">${QUAKE_LINE}${QUAKE_MORE}</p>
-      <p class="p-meta">調べた地点：${esc(c.name || '（未選択）')}${c.lat != null ? `（${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}）` : ''}　作成日：${today}${v.place && c.name && v.place !== c.name ? `<br><b>注意：上の欄は「${esc(v.place)}」を選んでいた時に書いた内容です。下の想定と逃げる場所は「${esc(c.name)}」のものです。</b>` : ''}</p>
+      <p class="p-meta">調べた地点：${esc(c.name || '（未選択）')}${c.lat != null ? `（${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}）` : ''}　作成日：${today}${v.pos && posOf(c) && v.pos !== posOf(c) ? `<br><b>注意：上の欄は${v.place ? `「${esc(v.place)}」` : '別の地点'}を選んでいた時に書いた内容です。下の想定と逃げる場所は「${esc(c.name)}」のものです。</b>` : ''}</p>
       ${FIELDS.map(([, k, label]) => `<h2>${label}</h2><p class="p-fill">${line(v[k])}</p>`).join('')}
       <h2>公式想定（内閣府 2025・11通りのうちの1つ「ケース01」・100m四方ごとの値）</h2><p>${off}</p>${lower}
       <h2>津波から逃げる場所（指定緊急避難場所・津波）近い順</h2>${sites}
-      <p class="p-foot">この紙は予測ではありません。公式想定は1つのケースの値で、実際の津波はこれより早く・深くなることがあります。避難は、市町村の情報と、津波警報・注意報に従ってください。<br><b>このデータは ${today} に取得しました。逃げる場所や想定は変わります。年に1回は家族で見直し、市町村の最新のハザードマップで確かめてください。</b><br>出典：内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データを集約加工／国土地理院「指定緊急避難場所データ」（津波）。「津波防災もしも再現」で作成。</p>`;
+      <p class="p-foot">この紙は予測ではありません。公式想定は1つのケースの値で、実際の津波はこれより早く・深くなることがあります。避難は、市町村の情報と、津波警報・注意報に従ってください。<br><b>公式想定は内閣府（2025）の資料、逃げる場所は ${today} に国土地理院から取得したものです。逃げる場所や想定は変わります。年に1回は家族で見直し、市町村の最新のハザードマップで確かめてください。</b><br>出典：内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）の浸水データを集約加工／国土地理院「指定緊急避難場所データ」（津波）。「津波防災もしも再現」で作成。</p>`;
   }
 
   $('memo-print').addEventListener('click', () => {
@@ -66,7 +71,7 @@ export function createMemo({ getContext }) {
   });
   $('memo-clear').addEventListener('click', () => {
     for (const [id] of FIELDS) $(id).value = '';
-    place = '';
+    place = ''; pos = '';
     try { localStorage.removeItem(KEY); } catch { /* nothing stored */ }
     $('memo-other').hidden = true;
     $('memo-saved').textContent = '書いた内容を、この端末から消しました';
@@ -78,12 +83,12 @@ export function createMemo({ getContext }) {
     open() {
       const v = read();
       for (const [id, k] of FIELDS) $(id).value = v[k] ?? '';
-      place = v.place ?? '';
+      place = v.place ?? ''; pos = v.pos ?? '';
       const c = getContext() ?? {};
       $('memo-place').textContent = c.name ? `いま選んでいる地点：${c.name}` : '';
-      const other = hasText() && place && c.name && place !== c.name;
+      const other = hasText() && pos && posOf(c) && pos !== posOf(c);
       $('memo-other').hidden = !other;
-      if (other) $('memo-other').textContent = `下の内容は、前に「${place}」を選んでいた時に書いたものです。いまの地点のメモにするなら、書き直してください。`;
+      if (other) $('memo-other').textContent = `下の内容は、前に${place ? `「${place}」` : '別の地点'}を選んでいた時に書いたものです。いまの地点のメモにするなら、書き直してください。`;
       $('memo-saved').textContent = '';
       openDialog(dlg, { focus: $(FIELDS[0][0]) });
     },

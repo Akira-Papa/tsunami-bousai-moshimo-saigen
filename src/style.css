@@ -465,3 +465,23 @@ input[type=range] { width: 100%; accent-color: var(--sea); min-height: 32px; }
   .hud-more { grid-column: 2; grid-row: 1; justify-self: end; }
   .hud-detail { grid-column: 1 / -1; }
 }
+
+/* ═════════ レビュー2周目の指摘の反映 ═════════ */
+.brief-main .k small, .hud-off output small, .stats dd small { font-size: 12px; }
+.linkbtn small { color: var(--ink); }
+.credit { background: rgba(9,18,26,.6); padding: 2px 8px; border-radius: 6px; }
+.evac-more summary, .chk { min-height: 44px; }
+.chk { align-items: center; }
+.sel-row select { min-height: 44px; }
+.go-bar .warn, #cond-warn { scroll-margin-bottom: 80px; }
+.sim-setup { padding-bottom: 4px; }
+#cond-warn { margin-bottom: 4px; }
+@media (min-width: 1440px) { .hud { max-height: calc(100dvh - 64px - var(--credit-h, 14px) - 24px); } }
+@media (max-width: 760px) {
+  /* 「くわしく」を開いても、右の欄はドックと通知にかからない（はみ出す分は欄の中でスクロール） */
+  .hud { max-height: calc(100dvh - 114px - var(--dock-h, 300px) - 20px); overflow-y: auto; }
+  .hud.closed { max-height: none; overflow: visible; }
+}
+.r-near { margin: 0; background: rgba(62,207,142,.1); border: 1px solid rgba(62,207,142,.5); border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.6; }
+.r-near b { font-size: 15px; }
+.r-near small { display: block; font-size: 12px; color: var(--ink-2); }

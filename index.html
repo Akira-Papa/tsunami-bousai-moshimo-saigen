@@ -19,7 +19,7 @@
     <aside class="card pick-card">
       <p class="quake" role="note"><b>強い揺れや、弱くても長い揺れを感じたら、すぐ高い所へ避難を。</b><span>このサイトは仮定の再現で、予測ではありません。</span></p>
       <header>
-        <p class="eyebrow">公式の想定を確かめる ＋ 3Dで水の動きを見る</p>
+        <p class="eyebrow">公式の想定を確かめる<span class="sim-only"> ＋ 3Dで水の動きを見る</span></p>
         <h1>津波防災 <span>もしも再現</span></h1>
         <p class="lead"><strong>まず、自宅や職場の近くを、地図か名前で選んでください。</strong>公式の浸水の想定と、津波から逃げる場所が出ます。<span class="sim-only">そのあと、3Dで「もしも」の津波の動きを見ることもできます。</span></p>
       </header>
@@ -103,7 +103,7 @@
       <p class="fineprint"><b>数字の出典</b>：公式想定＝内閣府 南海トラフの巨大地震モデル・被害想定手法検討会（2025）ケース01の浸水データを100mに集約。深さの目安＝内閣府 南海トラフ巨大地震の被害想定の手法（浸水深30cm以上で死者が発生し始め、1mでは津波に巻き込まれた人のすべてが亡くなると仮定）、気象庁（20〜30cm程度でも速い流れに巻き込まれるおそれ。木造家屋は2mで全面破壊に至る目安）。逃げる場所＝国土地理院「指定緊急避難場所データ」（津波）。確認日 2026-11-10。</p>
     </aside>
     <div id="map"></div>
-    <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。黄は浅い（浅くても流されます）、赤・紫ほど深い。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>
+    <p id="map-note" class="map-note" data-state="ok"><span class="mn-ok"><i class="sw fill"></i>色の丸＝公式想定（内閣府2025・ケース01）で浸水する所。黄は浅い（浅くても流されるおそれがあります）、赤・紫ほど深い。<b>丸のない所も、安全という意味ではありません。</b></span><span class="mn-far">地図を拡大すると、公式想定で浸水する所が色の丸で出ます。</span><span class="mn-failed">公式想定の一部を取得できませんでした（通信）。丸のない所も、安全という意味ではありません。</span></p>
   </section>
 
   <!-- 2. 読み込み -->
@@ -198,6 +198,7 @@
         <h2 id="r-title">結果と、このあとすること</h2>
         <section id="r-act" class="r-act" aria-label="このあとすること">
           <p class="call"><b>強い揺れや、弱くても長い揺れを感じたら、この画面を待たずに、すぐ高い所へ避難を。</b><span>津波はくり返し来ます。警報・注意報が解除されるまで、戻らないでください。</span></p>
+          <p id="r-near" class="r-near" hidden></p>
           <div id="r-key" class="r-key"></div>
           <h3 class="brief-h3">津波から逃げる場所<small>指定緊急避難場所（津波）・1km以内の近い順</small></h3>
           <div id="r-evac"></div>

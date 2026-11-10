@@ -4,10 +4,10 @@
 //   ・地図：公式の浸水セル（浸水セルだけ）と、逃げる場所の記号
 // 再現（3D）の数字はここには出さない。
 import * as maplibregl from 'maplibre-gl';
-import { officialNear, officialInBox, officialAround, caseNote } from './data/official.js';
+import { officialNear, officialInBox, officialAround, caseNote, cellHasLand } from './data/official.js';
 import { loadEvacSites, distJa, EVAC_SOURCE, EVAC_SOURCE_URL } from './data/evac.js';
 import { loadDemMosaic, URLS } from './data/tiles.js';
-import { $, esc, depthSay, hazardMapUrl, walkMin, arrivalJa } from './ui.js';
+import { $, esc, depthSay, hazardMapUrl, walkMin, arrivalSentence } from './ui.js';
 
 const NEAR = 300;      // これより遠い場所は見出しを分ける（このサイトの目安の区切り）
 const RADIUS = 1000;   // 探す範囲
@@ -17,9 +17,10 @@ const OTHER = 'ほかのケースや、地震の揺れで堤防が早く壊れ�
 
 /** 海岸の津波高をケース別に見て、ケース01がこの地域の最大のケースかどうかを一文で */
 export function caseHtml(info) {
+  // silence would read as "ケース01 is the worst case": say what is (not yet) known in every state
+  if (info == null) return '<p class="brief-case">ケース別の津波高を確認中…（ケース01より深く・広くなる地域があります）</p>';
   const n = caseNote(info?.row);
-  // no per-case figures (no municipality, or not in the table): silence would read as "ケース01 is the worst case"
-  if (!n) return info ? '<p class="brief-case">この地域のケース別の津波高は確認できていません。ケース01より深く・広くなることがあります。</p>' : '';
+  if (!n) return `<p class="brief-case">${info.failed ? 'ケース別の津波高を取得できませんでした。' : 'この地域のケース別の津波高は確認できていません。'}ケース01より深く・広くなることがあります。</p>`;
   const who = info.guessed ? `近くの「${esc(info.borrowed ?? info.name)}」（この地点の市区町村を特定できなかったため、近くの値です）`
     : info.borrowed ? `近くの「${esc(info.borrowed)}」` : `「${esc(info.name)}」`;
   const base = `${who}の海岸の最大津波高（内閣府の一覧・1m単位）は、ケース01では${n.c1}m、11ケースの最大は${n.max}m（ケース${n.tops.map((k) => String(k).padStart(2, '0')).join('・')}）。`;
@@ -44,15 +45,19 @@ export function officialHtml(o, info = null) {
     const deeper = a?.n && a.max > c.depth + 0.05;
     const top = Math.max(c.depth, deeper ? a.max : 0);
     const [say] = depthSay(top);
-    const arr = arrivalJa(c.arrival);
+    const partial = o.partial ? '<p class="src">周りの公式データの一部を取得できませんでした（通信）。周りの最大は、これより深いことがあります。</p>' : '';
     return `<div class="brief-nums"><div class="brief-main"><span class="k">この100m四方の最大浸水深</span><b class="brief-num">${c.depth.toFixed(1)}<i>m</i></b></div>${deeper ? `<div class="brief-main deeper"><span class="k">周り${a.R}m以内の最大<small>備えはこちらで</small></span><b class="brief-num">${a.max.toFixed(1)}<i>m</i></b></div>` : ''}</div>
       ${deeper && landNote ? `<p class="src">${landNote}</p>` : ''}
       <p class="brief-say">${esc(say)}</p>
-      <p class="brief-arr">${arr ? `地震から<b>最も早くて${arr}</b>で水が来はじめる想定です。` : ''}<span class="notsafe">逃げるまでの猶予の時間ではありません。</span>${OTHER}もっと早く・深くなることがあります。</p>${cs}`;
+      ${partial}<p class="brief-arr">${arrivalSentence(c.arrival)}<span class="notsafe">逃げるまでの猶予の時間ではありません。</span>${OTHER}もっと早く・深くなることがあります。</p>${cs}`;
   }
   if (o.state === 'none') {
-    const near = a?.n ? `<b>ただし、${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えはこの深さで）。</b>${landNote}` : '';
-    return `<p class="brief-none">このケース（ケース01）では、この100m四方に浸水のセルはありません。${near}<b class="notsafe">安全という意味ではありません。</b>${OTHER}浸水することがあります。自治体のハザードマップで確かめてください。</p>${a?.n ? `<p class="brief-say">${esc(depthSay(a.max)[0])}</p>` : ''}${cs}`;
+    // a shallow or distant neighbour is NOT a figure to prepare for (善進本町: 0.2 m, 230 m away, on land below sea level)
+    const weak = a?.n && (a.max < 0.3 || a.edge >= 100);
+    const near = !a?.n ? '' : weak
+      ? `<b>ただし、${edgeJa(a.edge)}最大 ${a.max.toFixed(1)}m の浸水の想定があります。</b>これはケース01だけの値で、備えの上限ではありません。${landNote}`
+      : `<b>ただし、${edgeJa(a.edge)}浸水の想定があります（周り${a.R}m以内の最大 ${a.max.toFixed(1)}m。備えは、少なくともこの深さで）。</b>${landNote}`;
+    return `<p class="brief-none">このケース（ケース01）では、この100m四方に浸水のセルはありません。${near}<b class="notsafe">安全という意味ではありません。</b>${OTHER}浸水することがあります。水が来る前に高い所へ逃げられるよう、自治体のハザードマップで確かめてください。</p>${a?.n && !weak ? `<p class="brief-say">${esc(depthSay(a.max)[0])}</p>` : ''}${o.partial ? '<p class="src">周りの公式データの一部を取得できませんでした（通信）。</p>' : ''}${cs}`;
   }
   if (o.state === 'outside') return `<p class="brief-none">この地点は、このサイトが収録している公式データの範囲の外です。<b class="notsafe">「浸水しない」という意味ではありません。</b>自治体のハザードマップで確かめてください。</p>`;
   return `<p class="brief-fail">公式想定を取得できませんでした（通信の状態を確かめてください）。<b class="notsafe">「浸水しない」という意味ではありません。</b> <button type="button" class="ghost small" data-retry="official">もう一度</button></p>`;
@@ -64,7 +69,7 @@ export function officialHtml(o, info = null) {
  * @param first   最初に見せる件数（残りは畳む）
  * @param notes   site.name → 注記HTML（再現の水位と比べられた建物だけ。肯定の表示は出さない）
  */
-export function evacHtml(ev, { first = 3, notes = null, letters = true } = {}) {
+export function evacHtml(ev, { first = 3, notes = null, letters = true, compact = false } = {}) {
   if (!ev) return '<p class="brief-wait">逃げる場所を確認中…</p>';
   if (ev.status === 'failed') return `<p class="brief-fail">逃げる場所のデータを取得できませんでした（通信の状態を確かめてください）。<b class="notsafe">「近くにない」という意味ではありません。</b> <button type="button" class="ghost small" data-retry="evac">もう一度</button></p>`;
   if (!ev.sites.length) return `<p class="brief-none">1km以内には、このデータ（国土地理院）に津波の指定緊急避難場所は見つかりませんでした。<b class="notsafe">「逃げる場所がない」「津波が来ない」という意味ではありません。</b>データに載っていない市町村もあります。自治体のハザードマップで、高い場所と逃げる場所を確かめてください。</p>`;
@@ -74,19 +79,21 @@ export function evacHtml(ev, { first = 3, notes = null, letters = true } = {}) {
       ${letters ? `<span class="evac-letter" aria-hidden="true">${LETTERS[n] ?? ''}</span>` : ''}
       <span class="evac-body"><b>${esc(s.name)}</b>
       <span class="evac-meta">直線で${distJa(s.d)}・${s.bearing}の方向</span>
-      <span class="evac-meta">歩く目安：約${w.fast}分／歩くのが難しい人・乳幼児連れは約${w.slow}分</span>
+      <span class="evac-meta">歩く目安：約${w.fast}分（実際の避難の平均の速さでは約${w.real}分）／歩くのが難しい人・乳幼児連れは約${w.slow}分${s.d > 500 ? '<b class="lowmark">　500mを超えます</b>' : ''}</span>
       ${s.address ? `<span class="evac-addr">${esc(s.address)}</span>` : ''}${s.remarks ? `<span class="evac-rem">備考：${esc(s.remarks)}</span>` : ''}${notes?.get(s.name) ?? ''}</span></button></li>`;
   };
   const near = [], farther = [];
   ev.sites.forEach((s, n) => (s.d <= NEAR ? near : farther).push([s, n]));
   const shown = (arr) => arr.filter(([, n]) => n < first).map(([s, n]) => item(s, n)).join('');
   const rest = ev.sites.map((s, n) => [s, n]).filter(([, n]) => n >= first);
-  let h = `<p class="evac-intro">津波から、まず命を守るために逃げ込む場所です（泊まるための「避難所」とは別です）。<b>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。</b>海や川に近づく道にならないかも、地図で確かめてください。</p>`;
+  const intro = `<p class="evac-intro">津波から、まず命を守るために逃げ込む場所です（泊まるための「避難所」とは別です）。<b>入口・開いている時間・何階まで上がれるかは、市町村の情報で確かめてください。</b>海や川に近づく道にならないかも、地図で確かめてください。</p>`;
+  // compact (the result screen on a phone): the first place must be visible without scrolling — the long note follows the list
+  let h = compact ? '<p class="evac-intro">命を守るために逃げ込む場所です（「避難所」とは別）。<b>入口・時間・階は市町村で確認。</b></p>' : intro;
   if (near.some(([, n]) => n < first)) h += `<p class="evac-group">${NEAR}m以内</p><ul class="evac-list">${shown(near)}</ul>`;
-  if (farther.some(([, n]) => n < first)) h += `<p class="evac-group far">${NEAR}mより遠い<small>早めに動く必要があります。歩くのが難しい人は、手を貸す人を決めておいてください</small></p><ul class="evac-list">${shown(farther)}</ul>`;
+  if (farther.some(([, n]) => n < first)) h += `<p class="evac-group far">${NEAR}mより遠い<small>早めに動く必要があります。歩くのが難しい人は、手を貸す人を決めておいてください。消防庁は、歩いて避難できる距離の目安を「最長でも500m程度」としています</small></p><ul class="evac-list">${shown(farther)}</ul>`;
   if (rest.length) h += `<details class="evac-more"><summary>ほか${rest.length}件を見る</summary><ul class="evac-list">${rest.map(([s, n]) => item(s, n)).join('')}</ul></details>`;
   if (ev.total > ev.sites.length) h += `<p class="src">1km以内にはほかに${ev.total - ev.sites.length}件あります（近い順に${ev.sites.length}件を表示）。</p>`;
-  h += `<p class="evac-note"><b>距離は直線です。</b>川・運河・線路をまたぐと、道のりは大きく変わります。${letters ? '記号（A・B…）は近い順で、おすすめの順ではありません。' : ''}歩く目安は、まっすぐ歩けた場合の時間です（1.0m/秒。歩くのが難しい人・乳幼児連れは0.5m/秒）。実際の避難はもっとゆっくりで、夜・雨・混雑ではさらにかかります。${NEAR}mの区切りは、このサイトの目安です。</p>`;
+  h += `<p class="evac-note"><b>距離は直線です。</b>川・運河・線路をまたぐと、道のりは大きく変わります。${letters ? '記号（A・B…）は近い順で、おすすめの順ではありません。' : ''}歩く目安は、まっすぐ歩けた場合の時間です（1.0m/秒。東日本大震災での実際の避難の平均は0.62m/秒。歩くのが難しい人・乳幼児連れは0.5m/秒）。夜・雨・混雑ではさらにかかります。${NEAR}mの区切りは、このサイトの目安です。${compact ? '海や川に近づく道にならないかも、地図で確かめてください。' : ''}</p>`;
   return h;
 }
 
@@ -101,8 +108,11 @@ async function landAround(lat, lon, o) {
   try {
     const d = 340 / 110940, dl = 340 / (111320 * Math.cos((lat * Math.PI) / 180));
     const dem = await loadDemMosaic({ west: lon - dl, east: lon + dl, north: lat + d, south: lat - d }, 14, URLS.dem10);
-    if (!dem.got) return; // no tile at all: cannot tell — keep every cell (and the caveat on screen)
-    o.around = officialAround(o.off, 0, 0, 300, (c) => !Number.isNaN(dem.sample(c.lat, c.lon, true)));
+    // no tile, or a tile that failed to load: land and water cannot be told apart everywhere — keep every cell
+    // (and the caveat on screen) rather than silently dropping the cells under the missing tile
+    if (!dem.got || dem.failed) return;
+    const kx = 111320 * Math.cos((lat * Math.PI) / 180);
+    o.around = officialAround(o.off, 0, 0, 300, (c) => cellHasLand((x, z) => !Number.isNaN(dem.sample(c.lat - z / 110940, c.lon + x / kx, true))));
   } catch { /* keep the unfiltered figure */ }
 }
 
@@ -174,17 +184,25 @@ export function createBrief({ map }) {
     if (!cur || !$('brief-off')) return;
     if (which === 'off') $('brief-off').innerHTML = officialHtml(cur.official, cur.info);
     if (which === 'evac') $('brief-evac').innerHTML = evacHtml(cur.evac);
-    if (which === 'links') $('brief-links').innerHTML = `
+    if (which === 'links') {
+      // rebuilt when the municipality arrives: keep the reader's focus on the same control
+      const f = document.activeElement, key = $('brief-links').contains(f) ? (f.id || f.getAttribute('href')) : null;
+      renderLinks();
+      if (key) [...$('brief-links').querySelectorAll('a, button')].find((n) => n.id === key || n.getAttribute('href') === key)?.focus({ preventScroll: true });
+    }
+    say();
+  }
+  function renderLinks() {
+    $('brief-links').innerHTML = `
         <a class="linkbtn" href="${hazardMapUrl(cur.lat, cur.lon)}" target="_blank" rel="noopener">重ねるハザードマップで、この地点を確かめる<small>（国土地理院・別の画面が開きます）</small></a>
         ${String(cur.info?.code ?? '').startsWith('231') && !cur.info?.guessed ? '<a class="linkbtn" href="https://www.city.nagoya.jp/bousaiportal/hinan/1013390/1013420.html" target="_blank" rel="noopener">名古屋市の津波避難ビルの一覧を見る<small>（名古屋市・別の画面が開きます）</small></a>' : ''}
         <button type="button" class="ghost" id="brief-memo">わが家の避難メモを書く</button>`;
-    say();
   }
   // read out once both parts have settled, and again whenever a retry changes the answer
   function say() {
     if (!cur?.official || !cur?.evac) return;
     const o = cur.official, e = cur.evac;
-    const t = `公式想定：${o.state === 'hit' ? `最大浸水深${officialPrep(o).toFixed(1)}メートル` : o.state === 'none' ? `このケースでは、この100メートル四方に浸水のセルなし${o.around?.n ? `。ただし近くに最大${o.around.max.toFixed(1)}メートルの想定` : ''}。安全という意味ではありません` : o.state === 'outside' ? '収録範囲の外。浸水しないという意味ではありません' : '取得できませんでした'}。逃げる場所：${e.status === 'failed' ? '取得できませんでした' : e.sites.length ? `${e.sites[0].name}、直線で${distJa(e.sites[0].d)}` : '1キロ以内には見つかりませんでした'}。`;
+    const t = `公式想定：${o.state === 'hit' ? `この100メートル四方の最大浸水深${o.cell.depth.toFixed(1)}メートル${o.around?.n && o.around.max > o.cell.depth + 0.05 ? `、周り300メートル以内の最大${o.around.max.toFixed(1)}メートル` : ''}` : o.state === 'none' ? `このケースでは、この100メートル四方に浸水のセルなし${o.around?.n ? `。ただし近くに最大${o.around.max.toFixed(1)}メートルの想定` : ''}。安全という意味ではありません` : o.state === 'outside' ? '収録範囲の外。浸水しないという意味ではありません' : '取得できませんでした。浸水しないという意味ではありません'}。逃げる場所：${e.status === 'failed' ? '取得できませんでした' : e.sites.length ? `${e.sites[0].name}、直線で${distJa(e.sites[0].d)}` : '1キロ以内には見つかりませんでした'}。`;
     if ($('brief-live').textContent !== t) $('brief-live').textContent = t;
   }
 
@@ -205,9 +223,12 @@ export function createBrief({ map }) {
     const jobs = [];
     if (!only || only === 'official') {
       c.official = null; part('off');
+      // the official figure is shown as soon as it is known; the land/water refinement (a second download) only
+      // replaces the "deepest nearby" figure afterwards — it never holds the card back
       jobs.push(officialNear(lat, lon).then(async (o) => {
-        await landAround(lat, lon, o);
         if (my === token) { c.official = o; part('off'); }
+        await Promise.race([landAround(lat, lon, o), new Promise((r) => setTimeout(r, 12000))]);
+        if (my === token) part('off');
       }));
     }
     if (!only || only === 'evac') {
