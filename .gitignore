@@ -10,3 +10,6 @@ docs/award/slides/slide-*.png
 # Fable 5.2 磨き直しの検証画像：元のPNGは大きいのでローカルだけ（縮小したJPEGと報告JSONは docs/fable52/before_jpg・after_jpg に入れている）
 docs/fable52/before/
 docs/fable52/after/
+
+# UI/UX見直しの確認用の生画像（scripts/fable52/uiux-shots.mjs で撮り直せる）
+docs/fable52/uiux/raw/*.png

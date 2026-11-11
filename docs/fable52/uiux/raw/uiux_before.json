@@ -1,0 +1,214 @@
+{
+  "label": "before",
+  "at": "2026-11-11T09:19:16.643Z",
+  "runs": [
+    {
+      "dev": "PC",
+      "errors": [],
+      "m": {
+        "1pick": {
+          "chars": 450,
+          "smallChars": 328,
+          "smallestFont": 10,
+          "taps": 19,
+          "tapsUnder44": [
+            "港区 善進本町(107×34)",
+            "港区 辰巳町(94×34)",
+            "港区 東海通(94×34)",
+            "南区 柴田(81×34)",
+            "ガーデンふ頭(104×34)",
+            "港区 稲永(81×34)",
+            "港区 船見町(94×34)",
+            "金城ふ頭(78×34)",
+            "高知市 種崎(94×34)",
+            "焼津漁港(78×34)",
+            "尾鷲市街(78×34)",
+            "串本町(65×34)",
+            "徳島市 沖洲(94×34)",
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "2card": {
+          "chars": 736,
+          "smallChars": 448,
+          "smallestFont": 12,
+          "taps": 12,
+          "tapsUnder44": [
+            "高知市 種崎(94×34)",
+            "焼津漁港(78×34)",
+            "尾鷲市街(78×34)",
+            "串本町(65×34)",
+            "徳島市 沖洲(94×34)",
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "3card_more": {
+          "chars": 707,
+          "smallChars": 590,
+          "smallestFont": 12,
+          "taps": 11,
+          "tapsUnder44": [
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "4sim_start": {
+          "chars": 801,
+          "smallChars": 734,
+          "smallestFont": 10,
+          "taps": 21,
+          "tapsUnder44": [
+            "地点を選び直す(117×36)",
+            "たたむ(65×36)",
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "5sim_arrived": {
+          "chars": 929,
+          "smallChars": 837,
+          "smallestFont": 10,
+          "taps": 23,
+          "tapsUnder44": [
+            "地点を選び直す(117×36)",
+            "たたむ(65×36)",
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "6sim_disp": {
+          "chars": 1151,
+          "smallChars": 1059,
+          "smallestFont": 10,
+          "taps": 39,
+          "tapsUnder44": [
+            "地点を選び直す(117×36)",
+            "たたむ(65×36)",
+            "道・地名(78×32)",
+            "tg-map(13×13)",
+            "逃げる道のり（カードと同じ道(221×32)",
+            "tg-route(13×13)",
+            "流れの印(78×32)",
+            "tg-marks(13×13)",
+            "深さで色分け（塗り＝この再現(221×32)",
+            "tg-depth(13×13)",
+            "公式想定を重ねる（斜線）(182×32)",
+            "tg-off(13×13)",
+            "飛沫(52×32)",
+            "tg-spray(13×13)",
+            "動きを減らす（飛沫を消し、深(286×32)",
+            "tg-calm(13×13)",
+            "高い建物を色で示す（入れるか(311×32)",
+            "tg-tall(13×13)",
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "7result": {
+          "chars": 857,
+          "smallChars": 360,
+          "smallestFont": 12,
+          "taps": 25,
+          "tapsUnder44": [
+            "地点を選び直す(117×36)",
+            "たたむ(65×36)",
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        }
+      },
+      "cardChars": 3840,
+      "freeStart": 65.3,
+      "freeArrived": 61.9,
+      "resultChars": 4234
+    },
+    {
+      "dev": "SP",
+      "errors": [],
+      "m": {
+        "1pick": {
+          "chars": 251,
+          "smallChars": 129,
+          "smallestFont": 12,
+          "taps": 12,
+          "tapsUnder44": [
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)"
+          ]
+        },
+        "2card": {
+          "chars": 399,
+          "smallChars": 323,
+          "smallestFont": 11,
+          "taps": 18,
+          "tapsUnder44": [
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)"
+          ]
+        },
+        "3card_more": {
+          "chars": 459,
+          "smallChars": 217,
+          "smallestFont": 12,
+          "taps": 5,
+          "tapsUnder44": [
+            "BUTTON(29×29)",
+            "BUTTON(29×29)",
+            "SUMMARY(24×24)"
+          ]
+        },
+        "4sim_start": {
+          "chars": 209,
+          "smallChars": 199,
+          "smallestFont": 10,
+          "taps": 12,
+          "tapsUnder44": []
+        },
+        "5sim_arrived": {
+          "chars": 338,
+          "smallChars": 328,
+          "smallestFont": 10,
+          "taps": 14,
+          "tapsUnder44": []
+        },
+        "6sim_disp": {
+          "chars": 556,
+          "smallChars": 547,
+          "smallestFont": 10,
+          "taps": 30,
+          "tapsUnder44": [
+            "tg-map(13×13)",
+            "tg-route(13×13)",
+            "tg-marks(13×13)",
+            "tg-depth(13×13)",
+            "tg-off(13×13)",
+            "tg-spray(13×13)",
+            "tg-calm(13×13)",
+            "tg-tall(13×13)"
+          ]
+        },
+        "7result": {
+          "chars": 550,
+          "smallChars": 108,
+          "smallestFont": 12,
+          "taps": 15,
+          "tapsUnder44": []
+        }
+      },
+      "cardChars": 3933,
+      "freeStart": 63.8,
+      "freeArrived": 48,
+      "resultChars": 1228
+    }
+  ]
+}

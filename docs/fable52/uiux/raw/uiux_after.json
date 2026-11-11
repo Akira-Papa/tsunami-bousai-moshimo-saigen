@@ -1,0 +1,168 @@
+{
+  "label": "after",
+  "at": "2026-11-11T16:33:08.861Z",
+  "runs": [
+    {
+      "dev": "PC",
+      "errors": [],
+      "m": {
+        "1pick": {
+          "chars": 265,
+          "smallChars": 0,
+          "smallestFont": 14,
+          "taps": 20,
+          "tapsUnder44": [
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "2card": {
+          "chars": 412,
+          "smallChars": 39,
+          "smallestFont": 13,
+          "taps": 11,
+          "tapsUnder44": [
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "3card_more": {
+          "chars": 461,
+          "smallChars": 39,
+          "smallestFont": 13,
+          "taps": 8,
+          "tapsUnder44": [
+            "SUMMARY(24×24)",
+            "地理院タイル(71×14)"
+          ]
+        },
+        "4sim_start": {
+          "chars": 468,
+          "smallChars": 198,
+          "smallestFont": 12,
+          "taps": 16,
+          "tapsUnder44": [
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "5sim_arrived": {
+          "chars": 519,
+          "smallChars": 198,
+          "smallestFont": 12,
+          "taps": 18,
+          "tapsUnder44": [
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "6sim_disp": {
+          "chars": 617,
+          "smallChars": 198,
+          "smallestFont": 12,
+          "taps": 32,
+          "tapsUnder44": [
+            "tg-route(22×22)",
+            "tg-map(22×22)",
+            "tg-marks(22×22)",
+            "tg-depth(22×22)",
+            "tg-off(22×22)",
+            "tg-spray(22×22)",
+            "tg-calm(22×22)",
+            "tg-tall(22×22)",
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        },
+        "7result": {
+          "chars": 621,
+          "smallChars": 0,
+          "smallestFont": 14,
+          "taps": 18,
+          "tapsUnder44": [
+            "国土地理院(60×17)",
+            "3D都市モデル（Projec(309×17)"
+          ]
+        }
+      },
+      "cardChars": 1173,
+      "freeStart": 66.6,
+      "freeArrived": 62.3,
+      "resultChars": 864
+    },
+    {
+      "dev": "SP",
+      "errors": [],
+      "m": {
+        "1pick": {
+          "chars": 241,
+          "smallChars": 46,
+          "smallestFont": 13,
+          "taps": 11,
+          "tapsUnder44": [
+            "SUMMARY(24×24)"
+          ]
+        },
+        "2card": {
+          "chars": 242,
+          "smallChars": 83,
+          "smallestFont": 13,
+          "taps": 20,
+          "tapsUnder44": [
+            "SUMMARY(24×24)"
+          ]
+        },
+        "3card_more": {
+          "chars": 283,
+          "smallChars": 83,
+          "smallestFont": 13,
+          "taps": 19,
+          "tapsUnder44": [
+            "SUMMARY(24×24)"
+          ]
+        },
+        "4sim_start": {
+          "chars": 144,
+          "smallChars": 32,
+          "smallestFont": 12,
+          "taps": 11,
+          "tapsUnder44": []
+        },
+        "5sim_arrived": {
+          "chars": 194,
+          "smallChars": 18,
+          "smallestFont": 12,
+          "taps": 13,
+          "tapsUnder44": []
+        },
+        "6sim_disp": {
+          "chars": 273,
+          "smallChars": 14,
+          "smallestFont": 13,
+          "taps": 26,
+          "tapsUnder44": [
+            "tg-route(22×22)",
+            "tg-map(22×22)",
+            "tg-marks(22×22)",
+            "tg-depth(22×22)",
+            "tg-off(22×22)",
+            "tg-spray(22×22)",
+            "tg-calm(22×22)",
+            "tg-tall(22×22)"
+          ]
+        },
+        "7result": {
+          "chars": 413,
+          "smallChars": 0,
+          "smallestFont": 14,
+          "taps": 12,
+          "tapsUnder44": []
+        }
+      },
+      "cardChars": 1088,
+      "freeStart": 63.3,
+      "freeArrived": 48.7,
+      "resultChars": 864
+    }
+  ]
+}

@@ -24,10 +24,44 @@ export function depthSay(h) {
   return ['2階の床の高さ（このサイトの目安で約3m）を超える深さです。気象庁は、2mで木造家屋が全面破壊に至る目安としています。巻き込まれると命にかかわります。水が来る前に、もっと高い所へ。', 'lv3'];
 }
 
+/**
+ * 深さの短い言い方（画面の1行用）。中身は depthSay と同じ一次情報からとり、言い切りを足さない。
+ * くわしい文（depthSay）は「くわしく」の中に残す。
+ */
+export function depthShort(h) {
+  if (h < 0.3) return ['浅くても、流されます', 'lv1'];
+  if (h < 1) return ['流されて、命の危険がある深さ', 'lv1'];
+  if (h < 2) return ['巻き込まれると、命にかかわる深さ', 'lv2'];
+  if (h < 3) return ['木造の家がこわれる深さ', 'lv3'];
+  return ['2階まで水が来る深さ', 'lv3'];
+}
+
+/**
+ * 深さを形で見せる絵：大人（約1.7m）と2階建ての家（2階の床 約3m・このサイトの目安）の横に、水の高さを塗る。
+ * 6mより深い時は、絵の上まで水にして「6m以上」と分かるように上に波線を出す。数字は別に大きく出す。
+ */
+export function depthFig(h, color = '#ffb7b7', around = null) {
+  const top = 6.6, H = 96, y = (m) => Math.round((H - (Math.min(m, top) / top) * H + 8) * 10) / 10;
+  const wy = y(h), p = y(1.7);
+  return `<svg class="depth-fig" viewBox="0 0 120 112" aria-hidden="true">
+    <rect x="0" y="${wy}" width="120" height="${Math.round((104 - wy) * 10) / 10}" fill="${color}"/>
+    <path d="M0 ${wy}h120" stroke="#b3261e" stroke-width="2.5"${h > top ? ' stroke-dasharray="6 4"' : ''}/>
+    <g fill="none" stroke="#1a1f24" stroke-width="2.4" stroke-linejoin="round">
+      <path d="M52 104V${y(6)}l27-10 27 10V104z" fill="rgba(255,255,255,.5)"/><path d="M52 ${y(3)}h54"/>
+      <path d="M62 ${y(5)}h10v10h-10z M86 ${y(5)}h10v10h-10z M62 ${y(2.2)}h10v10h-10z"/>
+    </g>
+    ${around != null ? `<path d="M0 ${y(around)}h120" stroke="#b3261e" stroke-width="2.5" stroke-dasharray="7 5"/>` : ''}
+    <g fill="#1a1f24"><circle cx="24" cy="${p + 4}" r="4.2"/><path d="M19 ${p + 10}h10v${Math.round((94 - p) * 10) / 10}h-3.6v-9h-2.8v9H19z"/></g>
+    <path d="M0 104h120" stroke="#1a1f24" stroke-width="3"/>
+  </svg>`;
+}
+
 /** 公式の最早到達（秒）→「約N分」。「最も早くて」と言う以上、切り捨てる（四捨五入は遅い側へずれる） */
 export function arrivalJa(sec) {
   if (sec == null || !Number.isFinite(sec)) return null;
-  return sec < 60 ? '1分たたないうち' : `約${Math.floor(sec / 60)}分`;
+  const m = Math.floor(sec / 60);
+  // an hour or more is said in hours and minutes ("108分" is hard to picture)
+  return sec < 60 ? '1分たたないうち' : m >= 60 ? `約${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ''}` : `約${m}分`;
 }
 /** 「地震から最も早くて約N分で水が来はじめる想定です。」（1分未満は言い回しを変える） */
 export function arrivalSentence(sec) {
