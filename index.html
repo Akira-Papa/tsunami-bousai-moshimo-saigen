@@ -45,6 +45,18 @@
 
       <div id="sel" class="sel" hidden>
         <div class="sel-place"><span id="sel-name">—</span><small id="sel-sub"></small></div>
+        <!-- 津波の高さ：カードのいちばん上でえらべる（2026-11-12 本人の指示）。3Dと「高い所への道」に効く。国の想定の数字は変えない -->
+        <div id="wave-box" class="wave-box sim-only">
+          <label for="H" class="wave-k">津波の高さ<small>海岸での海の高さ（「もしも」の条件）</small></label>
+          <div class="wave-row">
+            <button type="button" id="H-minus" class="ghost wave-btn" aria-label="津波の高さを低くする">−</button>
+            <div class="hval"><output id="Hout">5.0</output><span>m</span></div>
+            <button type="button" id="H-plus" class="ghost wave-btn" aria-label="津波の高さを高くする">＋</button>
+          </div>
+          <input id="H" type="range" min="1" max="30" step="0.5" value="5" aria-describedby="Hsrc wave-note" />
+          <p id="wave-note" class="wave-note">3Dと「高い所への道」に使います。<b>下の「国の想定」の深さは、変わりません。</b></p>
+          <details class="more sub"><summary>はじめの高さについて</summary><p id="Hsrc" class="src"></p></details>
+        </div>
         <p id="sel-zero" class="zero" hidden></p>
         <section id="brief" class="brief" aria-label="この地点の水の深さ（公式想定）と、津波から逃げる場所" hidden></section>
         <p id="brief-live" class="sr-only" role="status" aria-live="polite"></p>
@@ -52,15 +64,7 @@
         <p id="cond-warn" class="warn" hidden></p>
 
         <details id="sim-setup" class="sim-setup more">
-        <summary>3Dの条件を変える<small>海の高さ・防潮壁 など</small></summary>
-        <div class="sel-row">
-          <div>
-            <label for="H" class="k">海の高さ（海岸での津波の高さ・仮定）</label>
-            <div class="hval"><output id="Hout">5.0</output><span>m</span></div>
-          </div>
-          <input id="H" type="range" min="1" max="30" step="0.5" value="5" aria-describedby="Hsrc" />
-        </div>
-        <p id="Hsrc" class="src"></p>
+        <summary>3Dの条件を変える<small>潮位・防潮壁 など</small></summary>
         <p id="cond-line" class="cond-line"></p>
         <details id="adv" class="adv">
         <summary>くわしい条件を変える<small>（潮位・防潮壁・木造家屋・計算の細かさ）</small></summary>
@@ -230,6 +234,7 @@
           <label><input type="checkbox" id="tg-calm" /> 動きを少なく</label>
         </div>
         <p id="marks-legend" class="marks-legend"><i></i>白い線＝水の流れ。長いほど速い（雨や物ではありません。線のない所にも水はあります）</p>
+        <p id="wash-legend" class="marks-legend wash" hidden><i></i>消えた家＝流された木造の家（深さ2m以上で流される、とする目安）</p>
         <p id="front-legend" class="marks-legend front"><i></i>明るいふちの線＝いまの水のふち（深さ約5cm）。その先にも、うすい水があります</p>
       </div>
       <div id="legend" hidden>

@@ -13,3 +13,5 @@ docs/fable52/after/
 
 # UI/UX見直しの確認用の生画像（scripts/fable52/uiux-shots.mjs で撮り直せる）
 docs/fable52/uiux/raw/*.png
+docs/fable52/edge/*.png
+docs/fable52/edge/*.png

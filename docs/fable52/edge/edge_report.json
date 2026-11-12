@@ -1,0 +1,60 @@
+{
+  "before": [
+    {
+      "t": 1030,
+      "wetLandCellsNearEdge": 68685,
+      "volNearEdge_m3": 639151,
+      "maxDepthNearEdge": 5.27,
+      "shareFlowingBackIn": 0.185,
+      "pointDepth": 1.07,
+      "pointMax": 1.08
+    },
+    {
+      "t": 1347,
+      "wetLandCellsNearEdge": 87329,
+      "volNearEdge_m3": 985196,
+      "maxDepthNearEdge": 5.46,
+      "shareFlowingBackIn": 0.149,
+      "pointDepth": 1.66,
+      "pointMax": 1.73
+    },
+    {
+      "t": 1754,
+      "wetLandCellsNearEdge": 89893,
+      "volNearEdge_m3": 958820,
+      "maxDepthNearEdge": 5.22,
+      "shareFlowingBackIn": 0.085,
+      "pointDepth": 1.32,
+      "pointMax": 1.73
+    }
+  ],
+  "after": [
+    {
+      "t": 1027,
+      "wetLandCellsNearEdge": 55238,
+      "volNearEdge_m3": 352814,
+      "maxDepthNearEdge": 5.28,
+      "shareFlowingBackIn": 0.095,
+      "pointDepth": 1.01,
+      "pointMax": 1.01
+    },
+    {
+      "t": 1325,
+      "wetLandCellsNearEdge": 76411,
+      "volNearEdge_m3": 552982,
+      "maxDepthNearEdge": 5.41,
+      "shareFlowingBackIn": 0.073,
+      "pointDepth": 1.24,
+      "pointMax": 1.27
+    },
+    {
+      "t": 1731,
+      "wetLandCellsNearEdge": 81099,
+      "volNearEdge_m3": 578901,
+      "maxDepthNearEdge": 4.85,
+      "shareFlowingBackIn": 0.048,
+      "pointDepth": 0.99,
+      "pointMax": 1.27
+    }
+  ]
+}

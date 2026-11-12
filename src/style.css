@@ -234,6 +234,17 @@ details.more.sub > summary { min-height: 48px; font-size: 15px; }
 .evac-note b { color: var(--ink); }
 .evac-marker { width: 32px; height: 32px; border-radius: 50%; background: var(--green-l); color: #fff; font-weight: 800; font-size: 16px; display: grid; place-items: center; border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.5); font-family: var(--font); }
 .high-marker { width: 30px; height: 30px; border-radius: 8px; background: var(--orange-l); color: #fff; font-weight: 800; font-size: 16px; display: grid; place-items: center; border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.5); font-family: var(--font); }
+/* 津波の高さ：カードのいちばん上。大きな数字と − ＋、スライダー */
+.wave-box { border: 2px solid var(--blue); border-radius: 14px; background: var(--blue-bg); padding: 10px 14px 12px; display: grid; gap: 6px; }
+.wave-k { font-size: 18px; font-weight: 800; display: flex; flex-wrap: wrap; gap: 0 10px; align-items: baseline; }
+.wave-k small { font-size: 14px; font-weight: 400; color: var(--ink-2); }
+.wave-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.wave-row .hval output { font-size: 48px; }
+.wave-row .hval span { font-size: 22px; font-weight: 700; color: var(--blue-d); }
+.wave-btn { width: 64px; min-height: 56px; padding: 0; font-size: 30px; line-height: 1; border-color: var(--blue); color: var(--blue-d); }
+.wave-note { font-size: 15px; line-height: 1.5; }
+.wave-box details.more { background: transparent; border-color: var(--line-2); }
+.marks-legend.wash i { height: 10px; width: 22px; background: #6b5a44; clip-path: none; border-radius: 2px; }
 /* 3Dの条件（畳んである） */
 .sim-setup .sel-row, .sel-row { display: grid; gap: 6px; }
 .sel-row.small { grid-template-columns: auto 1fr; align-items: center; gap: 10px; }
@@ -613,3 +624,4 @@ html.debug .perf { display: block; font-family: ui-monospace, Menlo, monospace; 
 #map .maplibregl-ctrl-group button .maplibregl-ctrl-icon { background-size: 34px 34px; }
 @media (min-width: 761px) { .map-note { right: 70px; } }
 @media (max-width: 760px) { .map-note { right: 66px; } }
+@media (max-width: 760px) { .wave-box { padding: 8px 12px 10px; gap: 4px; } .wave-row .hval output { font-size: 42px; } }

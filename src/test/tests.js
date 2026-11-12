@@ -254,5 +254,35 @@ export async function runTests() {
         && runs[0].wokeAt > 0 && runs[0].innerWetShare > 0.05 && runs.every((x) => x.ctrlMissed === 0),
     };
   }
+
+  // T7 the land edge of the square lets the water LEAVE (no wall there): a dam-break flood runs over dry land and out
+  //    of the right edge. The same flood in a square twice as long (its edge far away) is the reference — in the last
+  //    100 m before the short square's edge the amount of water must agree with it, and at the edge the flow must
+  //    still point outward (2026-11-12, 本人の指示：「端っこでぶつかって帰ってくるのはおかしい」). With a mirror wall
+  //    at the edge the water piles up there and a bore runs back: several times the reference amount.
+  //    Judged at two moments (60 s and 140 s after the front has reached the edge).
+  {
+    const h0 = 2, dx = 2;
+    // (water: the reservoir is "water from the start", the ground beyond the dam is land that starts dry)
+    const make = (N) => makeRegion(N, N * dx, (r, k, x) => { const wet = x < -N * dx / 2 + 156; r.bed[k] = 0; r.eta0[k] = wet ? h0 : 0; r.water[k] = wet ? 1 : 0; });
+    const gauge = async (N, times) => {
+      const s = createSolver(renderer, make(N), { H: 0, manning: 0 });
+      s.wave.H = 0;
+      const out = [];
+      for (const T of times) {
+        const q = await run(renderer, s, T);
+        const j = N >> 1, i1 = 255; // the cell at the short square's right edge (510–512 m from the left edge)
+        let vol = 0; for (let a = 206; a <= 255; a++) vol += q[(j * N + a) * 4] * dx; // m² of water in the last 100 m
+        const k = (j * N + i1) * 4;
+        out.push({ T, vol, hEdge: q[k], uEdge: q[k] > 1e-3 ? q[k + 1] / q[k] : 0 });
+      }
+      s.dispose();
+      return out;
+    };
+    const times = [100, 180];
+    const short = await gauge(256, times), long = await gauge(512, times);
+    const volErr = short.map((x, n) => Math.abs(x.vol - long[n].vol) / long[n].vol);
+    res.T7_openEdge = { short, long, volErr, pass: volErr.every((e) => e < 0.10) && short.every((x) => x.uEdge > 0) };
+  }
   return res;
 }

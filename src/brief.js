@@ -186,7 +186,7 @@ export function routeHtml(rt, ev, H, sel = null, canChange = false, off = null) 
   const pressed = (id) => `aria-pressed="${sel === id}"`;
   // one line that must stay in sight; the conditions and the long notes are folded at the end of the list
   let h = '<p class="route-note lead"><b>通れるとは限りません。</b>上の時間とくらべて「間に合う」とは言えません。<b>揺れたら、すぐ逃げてください。</b></p>';
-  const notes = `<p class="route-wave">波の条件：<b>海の高さ ${H.toFixed(1)}m</b><small>（海岸での津波の高さ。初期値は内閣府の最大津波高${canChange ? '。下の「3Dの条件を変える」の海の高さを変えると、高い所の行き先も変わります' : ''}）</small></p>
+  const notes = `<p class="route-wave">波の条件：<b>海の高さ ${H.toFixed(1)}m</b><small>（海岸での津波の高さ。初期値は内閣府の最大津波高${canChange ? '。上の「津波の高さ」を変えると、高い所の行き先も変わります' : ''}）</small></p>
     <p class="route-note">道のりは、地図データから求めた目安です。<b>通れるとは限りません</b>（橋の損傷・建物の倒壊・液状化・夜や雨など）。津波が来る前に逃げる想定で、浸水する道も避けていません。<b>実際に歩いて確かめてください。</b></p>
     <p class="route-note">${off?.state === 'hit' && off.cell?.arrival != null ? `津波は、地震から最も早くて${off.cell.arrival < 60 ? '1分たたないうち' : `約${Math.floor(off.cell.arrival / 60)}分`}で来はじめる想定です（この地点の公式想定・ケース01）。` : '津波は、地震のあと数分で来ることがあります。'}歩く目安は歩き出してからの時間で、これと比べて<b>「間に合う」とは言えません</b>。遠い所を目指すより、近くの丈夫な建物の上の階へ上がるほうが早い場合があります。</p>
     <p class="route-note">歩く時間は「速く歩ける人〜歩くのが難しい人」の幅です（1.0m/秒〜0.5m/秒。東日本大震災での実際の避難の平均は0.62m/秒）。夜・雨・混雑では、さらにかかります。</p>`;

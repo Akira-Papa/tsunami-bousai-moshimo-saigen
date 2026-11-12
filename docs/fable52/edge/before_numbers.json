@@ -1,0 +1,704 @@
+{
+  "label": "before",
+  "base": "http://127.0.0.1:5351",
+  "at": "2026-11-12T00:03:48.787Z",
+  "repeat": 2,
+  "speed": "画面の既定",
+  "extra": "",
+  "cases": {
+    "nagoya": {
+      "title": "名古屋港 ガーデンふ頭",
+      "query": "&lat=35.0905&lon=136.8844&n=768",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [],
+          "rows": [
+            {
+              "t": 301.961,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.5,
+              "mean": 2.307,
+              "meanMax": 2.307,
+              "front": 103.1,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 700.272,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.549,
+              "mean": 4.433,
+              "meanMax": 4.433,
+              "front": 37.5,
+              "breached": 170,
+              "washed": 3,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1100.529,
+              "h": 1.258,
+              "max": 1.285,
+              "vmax": 1.924,
+              "arr": 814.74,
+              "gain": 0.616,
+              "mean": 5.077,
+              "meanMax": 5.077,
+              "front": 0,
+              "breached": 3854,
+              "washed": 561,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1750.128,
+              "h": 1.329,
+              "max": 1.729,
+              "vmax": 1.924,
+              "arr": 814.74,
+              "gain": 0.445,
+              "mean": 4.869,
+              "meanMax": 5.32,
+              "front": 0,
+              "breached": 3921,
+              "washed": 937,
+              "fps": "60 fps · 格子 768² · 実効 ×20"
+            }
+          ],
+          "conditions": {
+            "N": 768,
+            "dx": 1.953125,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": false,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        },
+        {
+          "rep": 2,
+          "errors": [],
+          "rows": [
+            {
+              "t": 301.904,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.5,
+              "mean": 2.307,
+              "meanMax": 2.307,
+              "front": 103.1,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 700.387,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.549,
+              "mean": 4.433,
+              "meanMax": 4.433,
+              "front": 37.5,
+              "breached": 178,
+              "washed": 3,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1100.453,
+              "h": 1.257,
+              "max": 1.285,
+              "vmax": 1.924,
+              "arr": 814.74,
+              "gain": 0.616,
+              "mean": 5.077,
+              "meanMax": 5.077,
+              "front": 0,
+              "breached": 3854,
+              "washed": 561,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1750.414,
+              "h": 1.328,
+              "max": 1.729,
+              "vmax": 1.924,
+              "arr": 814.74,
+              "gain": 0.445,
+              "mean": 4.868,
+              "meanMax": 5.32,
+              "front": 0,
+              "breached": 3921,
+              "washed": 937,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            }
+          ],
+          "conditions": {
+            "N": 768,
+            "dx": 1.953125,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": false,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 300,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.5,
+            "max": 0.5,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 2.307,
+            "max": 2.307,
+            "n": 2
+          },
+          "front": {
+            "min": 103.1,
+            "max": 103.1,
+            "n": 2
+          }
+        },
+        {
+          "t": 700,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.549,
+            "max": 0.549,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 4.433,
+            "max": 4.433,
+            "n": 2
+          },
+          "front": {
+            "min": 37.5,
+            "max": 37.5,
+            "n": 2
+          }
+        },
+        {
+          "t": 1100,
+          "h": {
+            "min": 1.257,
+            "max": 1.258,
+            "n": 2
+          },
+          "max": {
+            "min": 1.285,
+            "max": 1.285,
+            "n": 2
+          },
+          "vmax": {
+            "min": 1.924,
+            "max": 1.924,
+            "n": 2
+          },
+          "arr": {
+            "min": 814.74,
+            "max": 814.74,
+            "n": 2
+          },
+          "gain": {
+            "min": 0.616,
+            "max": 0.616,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.077,
+            "max": 5.077,
+            "n": 2
+          },
+          "front": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          }
+        },
+        {
+          "t": 1750,
+          "h": {
+            "min": 1.328,
+            "max": 1.329,
+            "n": 2
+          },
+          "max": {
+            "min": 1.729,
+            "max": 1.729,
+            "n": 2
+          },
+          "vmax": {
+            "min": 1.924,
+            "max": 1.924,
+            "n": 2
+          },
+          "arr": {
+            "min": 814.74,
+            "max": 814.74,
+            "n": 2
+          },
+          "gain": {
+            "min": 0.445,
+            "max": 0.445,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.32,
+            "max": 5.32,
+            "n": 2
+          },
+          "front": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          }
+        }
+      ]
+    },
+    "kochi": {
+      "title": "高知市 種崎",
+      "query": "&lat=33.5061&lon=133.5693&n=768",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [],
+          "rows": [
+            {
+              "t": 402.003,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.5,
+              "mean": 4.851,
+              "meanMax": 4.851,
+              "front": 172.1,
+              "breached": 0,
+              "washed": 260,
+              "fps": "55 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 802.138,
+              "h": 6.828,
+              "max": 6.831,
+              "vmax": 4.133,
+              "arr": 559.66,
+              "gain": 0.699,
+              "mean": 12.123,
+              "meanMax": 12.123,
+              "front": 0,
+              "breached": 0,
+              "washed": 2108,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1500.753,
+              "h": 9.98,
+              "max": 11.419,
+              "vmax": 4.133,
+              "arr": 559.66,
+              "gain": 0.473,
+              "mean": 15.401,
+              "meanMax": 16.684,
+              "front": 0,
+              "breached": 0,
+              "washed": 2112,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            }
+          ],
+          "conditions": {
+            "N": 768,
+            "dx": 1.953125,
+            "L": 1500,
+            "H": 15,
+            "tide": 0,
+            "nested": false,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        },
+        {
+          "rep": 2,
+          "errors": [],
+          "rows": [
+            {
+              "t": 401.986,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.5,
+              "mean": 4.851,
+              "meanMax": 4.851,
+              "front": 172.1,
+              "breached": 0,
+              "washed": 260,
+              "fps": "54 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 801.734,
+              "h": 6.829,
+              "max": 6.831,
+              "vmax": 4.133,
+              "arr": 559.66,
+              "gain": 0.699,
+              "mean": 12.115,
+              "meanMax": 12.115,
+              "front": 0,
+              "breached": 0,
+              "washed": 2108,
+              "fps": "50 fps · 格子 768² · 実効 ×0"
+            },
+            {
+              "t": 1502.032,
+              "h": 9.975,
+              "max": 11.419,
+              "vmax": 4.133,
+              "arr": 559.66,
+              "gain": 0.473,
+              "mean": 15.398,
+              "meanMax": 16.684,
+              "front": 0,
+              "breached": 0,
+              "washed": 2112,
+              "fps": "60 fps · 格子 768² · 実効 ×0"
+            }
+          ],
+          "conditions": {
+            "N": 768,
+            "dx": 1.953125,
+            "L": 1500,
+            "H": 15,
+            "tide": 0,
+            "nested": false,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 400,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.5,
+            "max": 0.5,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 4.851,
+            "max": 4.851,
+            "n": 2
+          },
+          "front": {
+            "min": 172.1,
+            "max": 172.1,
+            "n": 2
+          }
+        },
+        {
+          "t": 800,
+          "h": {
+            "min": 6.828,
+            "max": 6.829,
+            "n": 2
+          },
+          "max": {
+            "min": 6.831,
+            "max": 6.831,
+            "n": 2
+          },
+          "vmax": {
+            "min": 4.133,
+            "max": 4.133,
+            "n": 2
+          },
+          "arr": {
+            "min": 559.66,
+            "max": 559.66,
+            "n": 2
+          },
+          "gain": {
+            "min": 0.699,
+            "max": 0.699,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 12.115,
+            "max": 12.123,
+            "n": 2
+          },
+          "front": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          }
+        },
+        {
+          "t": 1500,
+          "h": {
+            "min": 9.975,
+            "max": 9.98,
+            "n": 2
+          },
+          "max": {
+            "min": 11.419,
+            "max": 11.419,
+            "n": 2
+          },
+          "vmax": {
+            "min": 4.133,
+            "max": 4.133,
+            "n": 2
+          },
+          "arr": {
+            "min": 559.66,
+            "max": 559.66,
+            "n": 2
+          },
+          "gain": {
+            "min": 0.473,
+            "max": 0.473,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 16.684,
+            "max": 16.684,
+            "n": 2
+          },
+          "front": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          }
+        }
+      ]
+    },
+    "inland": {
+      "title": "名古屋駅の近く（内陸・二段計算）",
+      "query": "&lat=35.1709&lon=136.8815&n=512",
+      "runs": [
+        {
+          "rep": 1,
+          "errors": [],
+          "rows": [
+            {
+              "t": 1500.022,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.581,
+              "mean": 5.248,
+              "meanMax": 5.252,
+              "front": 7675.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 3000.935,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.49,
+              "mean": 4.965,
+              "meanMax": 5.252,
+              "front": 5938.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "60 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            }
+          ],
+          "conditions": {
+            "N": 512,
+            "dx": 2.9296875,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": true,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        },
+        {
+          "rep": 2,
+          "errors": [],
+          "rows": [
+            {
+              "t": 1500.022,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.581,
+              "mean": 5.248,
+              "meanMax": 5.252,
+              "front": 7675.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "53 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            },
+            {
+              "t": 3001.291,
+              "h": 0,
+              "max": 0,
+              "vmax": 0,
+              "arr": null,
+              "gain": 0.49,
+              "mean": 4.965,
+              "meanMax": 5.252,
+              "front": 5938.7,
+              "breached": 0,
+              "washed": 0,
+              "fps": "49 fps · 格子 512² ＋広域 768²（詳細は待機中） · 実効 ×"
+            }
+          ],
+          "conditions": {
+            "N": 512,
+            "dx": 2.9296875,
+            "L": 1500,
+            "H": 5,
+            "tide": 1.2,
+            "nested": true,
+            "speed": "auto",
+            "speedUsed": "auto"
+          }
+        }
+      ],
+      "spread": [
+        {
+          "t": 1500,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.581,
+            "max": 0.581,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.252,
+            "max": 5.252,
+            "n": 2
+          },
+          "front": {
+            "min": 7675.7,
+            "max": 7675.7,
+            "n": 2
+          }
+        },
+        {
+          "t": 3000,
+          "h": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "max": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "vmax": {
+            "min": 0,
+            "max": 0,
+            "n": 2
+          },
+          "arr": null,
+          "gain": {
+            "min": 0.49,
+            "max": 0.49,
+            "n": 2
+          },
+          "meanMax": {
+            "min": 5.252,
+            "max": 5.252,
+            "n": 2
+          },
+          "front": {
+            "min": 5938.7,
+            "max": 5938.7,
+            "n": 2
+          }
+        }
+      ]
+    }
+  }
+}

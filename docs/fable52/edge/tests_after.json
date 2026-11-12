@@ -1,0 +1,218 @@
+{
+  "T1_lakeAtRest": {
+    "umax": 0.000030242279556157292,
+    "massErr": -5.518081767611081e-10,
+    "pass": true
+  },
+  "T2_damBreak": {
+    "front": 52.5,
+    "exact": 54.15364116140686,
+    "relErr": -0.030536102946025795,
+    "film1cmRelErr": -0.14120266701548975,
+    "hMid": 0.8831301927566528,
+    "hMidExact": 0.8888888888888888,
+    "pass": true
+  },
+  "T3_basinFill": {
+    "H": 3,
+    "etaNearShoreNow": 3.2402726003101896,
+    "maxEtaLandNow": 3.2418110854923725,
+    "maxEtaLandEver": 3.2696781158447266,
+    "gain": 0.5769997188844673,
+    "pass": true
+  },
+  "T4_parabolicBowl": {
+    "period": 61.42299697174784,
+    "l2Half": 0.006794375604267065,
+    "l2Full": 0.010383502942455795,
+    "shoreHalfCells": -1.1816150011815552,
+    "shoreFullCells": -0.12144134538041129,
+    "l2After3": 0.016055444277549517,
+    "l2Half3": 0.014548065711701983,
+    "shoreAfter3Cells": 0.39722090258705123,
+    "shoreHalf3Cells": -1.1627222131447894,
+    "massErr": 3.8915338239410865e-7,
+    "pass": true
+  },
+  "T5_sameResultAtAnySpeed": {
+    "runs": [
+      {
+        "perCall": 1,
+        "gain": 0.5762279503796639,
+        "etaNearShore": 3.238826903275081,
+        "maxDepthLand": 3.222486734390259,
+        "subSteps": 12803,
+        "hashA": "ff130ca4",
+        "hashM": "63776181",
+        "hashS": "af9225c5",
+        "levees": 512,
+        "housesWashed": 1,
+        "ctrlMissed": 0
+      },
+      {
+        "perCall": 7,
+        "gain": 0.5762279503796639,
+        "etaNearShore": 3.238826903275081,
+        "maxDepthLand": 3.222486734390259,
+        "subSteps": 12803,
+        "hashA": "ff130ca4",
+        "hashM": "63776181",
+        "hashS": "af9225c5",
+        "levees": 512,
+        "housesWashed": 1,
+        "ctrlMissed": 0
+      },
+      {
+        "perCall": 30,
+        "gain": 0.5762279503796639,
+        "etaNearShore": 3.238826903275081,
+        "maxDepthLand": 3.222486734390259,
+        "subSteps": 12803,
+        "hashA": "ff130ca4",
+        "hashM": "63776181",
+        "hashS": "af9225c5",
+        "levees": 512,
+        "housesWashed": 1,
+        "ctrlMissed": 0
+      },
+      {
+        "perCall": 100,
+        "gain": 0.5762279503796639,
+        "etaNearShore": 3.238826903275081,
+        "maxDepthLand": 3.222486734390259,
+        "subSteps": 12803,
+        "hashA": "ff130ca4",
+        "hashM": "63776181",
+        "hashS": "af9225c5",
+        "levees": 512,
+        "housesWashed": 1,
+        "ctrlMissed": 0
+      },
+      {
+        "perCall": 300,
+        "gain": 0.5762279503796639,
+        "etaNearShore": 3.238826903275081,
+        "maxDepthLand": 3.222486734390259,
+        "subSteps": 12803,
+        "hashA": "ff130ca4",
+        "hashM": "63776181",
+        "hashS": "af9225c5",
+        "levees": 512,
+        "housesWashed": 1,
+        "ctrlMissed": 0
+      }
+    ],
+    "gainSpread": 0,
+    "levelSpread": 0,
+    "maxDepthSpread": 0,
+    "bitIdentical": true,
+    "exercised": true,
+    "pass": true
+  },
+  "T6_nestedPairSameResult": {
+    "runs": [
+      {
+        "speed": 20,
+        "fps": 30,
+        "maxSteps": 48,
+        "frames": 780,
+        "wokeAt": 124.21718071511728,
+        "innerSubSteps": 13721,
+        "outerSubSteps": 5861,
+        "gain": 0.7123870442895298,
+        "innerWetShare": 1,
+        "ctrlMissed": 0,
+        "innerA": "397cdf32",
+        "innerM": "46f114cf",
+        "outerA": "2ece3c36",
+        "outerM": "86284f9a"
+      },
+      {
+        "speed": 60,
+        "fps": 60,
+        "maxSteps": 28,
+        "frames": 521,
+        "wokeAt": 124.21718071511728,
+        "innerSubSteps": 13721,
+        "outerSubSteps": 5861,
+        "gain": 0.7123870442895298,
+        "innerWetShare": 1,
+        "ctrlMissed": 0,
+        "innerA": "397cdf32",
+        "innerM": "46f114cf",
+        "outerA": "2ece3c36",
+        "outerM": "86284f9a"
+      },
+      {
+        "speed": 5,
+        "fps": 24,
+        "maxSteps": 6,
+        "frames": 2496,
+        "wokeAt": 124.21718071511728,
+        "innerSubSteps": 13721,
+        "outerSubSteps": 5861,
+        "gain": 0.7123870442895298,
+        "innerWetShare": 1,
+        "ctrlMissed": 0,
+        "innerA": "397cdf32",
+        "innerM": "46f114cf",
+        "outerA": "2ece3c36",
+        "outerM": "86284f9a"
+      },
+      {
+        "speed": 999,
+        "fps": 20,
+        "maxSteps": 48,
+        "frames": 227,
+        "wokeAt": 124.21718071511728,
+        "innerSubSteps": 13721,
+        "outerSubSteps": 5861,
+        "gain": 0.7123870442895298,
+        "innerWetShare": 1,
+        "ctrlMissed": 0,
+        "innerA": "397cdf32",
+        "innerM": "46f114cf",
+        "outerA": "2ece3c36",
+        "outerM": "86284f9a"
+      }
+    ],
+    "bitIdentical": true,
+    "exercised": true,
+    "pass": true
+  },
+  "T7_openEdge": {
+    "short": [
+      {
+        "T": 100,
+        "vol": 38.31148499250412,
+        "hEdge": 0.3194417357444763,
+        "uEdge": 5.3182406873379815
+      },
+      {
+        "T": 180,
+        "vol": 27.170474350452423,
+        "hEdge": 0.2689172029495239,
+        "uEdge": 3.1457505205375735
+      }
+    ],
+    "long": [
+      {
+        "T": 100,
+        "vol": 38.31388336420059,
+        "hEdge": 0.3206385374069214,
+        "uEdge": 5.311644633940226
+      },
+      {
+        "T": 180,
+        "vol": 27.170606434345245,
+        "hEdge": 0.2689828872680664,
+        "uEdge": 3.139503242344415
+      }
+    ],
+    "volErr": [
+      0.00006259797978904792,
+      0.000004861278791897107
+    ],
+    "pass": true
+  }
+}

@@ -297,6 +297,8 @@ function applyUrlConditions() {
   if (['h', 'tide', 'levee', 'crest', 'breach'].some((k) => qs.has(k))) sel.touched = true; // a late municipality answer must not undo the link's conditions
 }
 $('H').addEventListener('input', (e) => { $('Hout').textContent = Number(e.target.value).toFixed(1); waveChanged(); });
+// big − / ＋ buttons next to the figure (half a metre a press): the slider alone is hard to set with a thumb
+for (const [id, d] of [['H-minus', -0.5], ['H-plus', 0.5]]) $(id).addEventListener('click', () => { const el = $('H'); const v = Math.min(Number(el.max), Math.max(Number(el.min), Number(el.value) + d)); if (v !== Number(el.value)) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } });
 
 // ─────────────────────────────────────────────────────────────
 //  2. renderer (created once, reused per town)
@@ -928,6 +930,7 @@ async function createApp(region, o) {
     world.setMapVisible?.($('tg-map').checked);
     mapLabels?.setVisible($('tg-map').checked);
     $('marks-legend').hidden = !world.marks.visible;
+    $('wash-legend').hidden = !(solver.washDepth > 0);
     $('front-legend').hidden = depth; // the colouring paints over the bright edge line
     $('tg-marks').disabled = calm(); $('tg-spray').disabled = calm(); // 「動きを減らす」switches both off
     world.uShowTall.value = $('tg-tall').checked ? 1 : 0;
@@ -1093,7 +1096,7 @@ async function createApp(region, o) {
       // first wooden house washed away (気象庁の目安: 浸水2mで木造家屋は全面破壊。首藤の津波強度階級による)
       if (!st.washSaid && solver.coast.washed > 0 && !st.event) {
         st.washSaid = true;
-        sayEvent(`${region.buildings.some((b) => b.woodEst) ? '木造などの建物（構造は推定）' : '木造家屋'}が流され始めました（浸水2m・気象庁の目安）`, 9, '家屋が流され始めました');
+        sayEvent(`${region.buildings.some((b) => b.woodEst) ? '木造などの建物（構造は推定）' : '木造家屋'}が流され始めました。消えた家＝流された家です（深さ2m以上・気象庁の目安）`, 9, '家が流されました（消えた家＝流された家）');
       }
       // first water on land → offer the hazard-map colouring (日向 #5)
       if (!st.toasted && $('toast').hidden && floodOnLand() && !$('tg-depth').checked) {

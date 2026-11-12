@@ -185,19 +185,24 @@ export function createSolver(renderer, region, opts = {}) {
   };
   const at = (i, j, di, dj) => clamp(j.add(dj), 0, N - 1).mul(N).add(clamp(i.add(di), 0, N - 1));
 
-  // neighbour state; outside the square the ghost copies the cell but only lets water LEAVE.
-  // (A plain zero-gradient copy also lets inflow through, which silently pumps water into the
-  //  town from the land edges — seen as a 20 m pile-up in a corner of 名古屋港 before this fix.)
-  const nb = (src, qc, i, j, di, dj, inZone) => {
+  // neighbour state at the edge of the square.
+  //  ・land (cells that started dry) and the wave-maker zone: an OPEN edge — the ghost copies the cell but only lets
+  //    water LEAVE. A flood that reaches the edge of the square runs on out of it; nothing comes in.
+  //    (A plain zero-gradient copy would also let inflow through, which silently pumps water into the town from the
+  //     land edges — seen as a 20 m pile-up in a corner of 名古屋港 before that was fixed.)
+  //  ・water that was there from the start (the sea outside the wave-maker zone, rivers, harbour basins): a mirror =
+  //    "the sea goes on the same way outside the square". Opening these as well drains the sea itself through the
+  //    sides (measured 2026-11-12: the near-shore level at 名古屋港 fell by a quarter and the wave arrived 170 s late).
+  // 2026-11-12（本人の指示）: the land edge used to be a mirror wall too ("outside the square floods the same way",
+  // 汐見 r2 #3) — a flood that reached it piled up there and ran back into the square as a bore: water that "hits the
+  // edge and comes back". Test T7 in src/test/tests.js; what this changes in the depths is in docs/fable52/17.
+  const nb = (src, qc, i, j, di, dj, open) => {
     const ii = i.add(di), jj = j.add(dj);
     const out = ii.lessThan(0).or(ii.greaterThan(N - 1)).or(jj.lessThan(0)).or(jj.greaterThan(N - 1));
     const q = src.element(at(i, j, di, dj));
-    // wave-maker zone: outflow-only ghost (reflected waves must leave).
-    // elsewhere: a mirror wall = "outside the square floods the same way" (汐見 r2 #3) — a transmissive
-    // edge turned the rim of the square into a drain during the long hold.
     let ghost;
-    if (di !== 0) ghost = select(inZone, vec4(qc.x, di > 0 ? max(qc.y, 0) : min(qc.y, 0), qc.z, qc.w), vec4(qc.x, qc.y.negate(), qc.z, qc.w));
-    else ghost = select(inZone, vec4(qc.x, qc.y, dj > 0 ? max(qc.z, 0) : min(qc.z, 0), qc.w), vec4(qc.x, qc.y, qc.z.negate(), qc.w));
+    if (di !== 0) ghost = select(open, vec4(qc.x, di > 0 ? max(qc.y, 0) : min(qc.y, 0), qc.z, qc.w), vec4(qc.x, qc.y.negate(), qc.z, qc.w));
+    else ghost = select(open, vec4(qc.x, qc.y, dj > 0 ? max(qc.z, 0) : min(qc.z, 0), qc.w), vec4(qc.x, qc.y, qc.z.negate(), qc.w));
     return select(out, ghost, q);
   };
 
@@ -206,7 +211,8 @@ export function createSolver(renderer, region, opts = {}) {
     const e = at(i, j, 1, 0), e2 = at(i, j, 2, 0), w = at(i, j, -1, 0), w2 = at(i, j, -2, 0);
     const s = at(i, j, 0, 1), s2 = at(i, j, 0, 2), n = at(i, j, 0, -1), n2 = at(i, j, 0, -2);
     const qc = src.element(k).toVar();
-    const z = W.element(k).x.greaterThan(0);
+    // open edge: the wave-maker zone, and land that started dry (S.w — a washed-away house becomes such land too)
+    const z = W.element(k).x.greaterThan(0).or(S.element(k).w.greaterThan(0.5));
     return cellFn({
       qc, sc: S.element(k),
       qe: nb(src, qc, i, j, 1, 0, z), se: S.element(e), qe2: nb(src, qc, i, j, 2, 0, z), se2: S.element(e2),
